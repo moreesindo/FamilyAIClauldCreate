@@ -1,0 +1,221 @@
+version: '3.8'
+
+# FamilyAI Model Download Configuration
+# This compose file is used specifically for downloading models from HuggingFace
+# Run with: docker-compose -f docker-compose.download.yml run --rm model-downloader
+
+services:
+  # ===========================================================================
+  # Model Downloader Service
+  # ===========================================================================
+  model-downloader:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-model-downloader
+    environment:
+      # Proxy settings for model download
+      - HTTP_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - HTTPS_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - http_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - https_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+
+      # HuggingFace configuration
+      - HF_HOME=/data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+      - TRANSFORMERS_CACHE=/data/huggingface/hub
+
+      # Model to download (can be overridden)
+      - MODEL_NAME=${MODEL_NAME:-}
+
+    volumes:
+      # Mount HuggingFace cache directory
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+
+      # Mount download script
+      - ./scripts/download-model.py:/app/download-model.py:ro
+
+    network_mode: host
+
+    # Override entrypoint to run download script
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        set -e
+        echo "============================================"
+        echo "FamilyAI Model Downloader"
+        echo "============================================"
+        echo "Proxy: ${HTTP_PROXY:-Not configured}"
+        echo "Cache directory: /data/huggingface"
+        echo ""
+
+        # Install required packages if not present
+        pip install -q huggingface-hub transformers
+
+        # Check if MODEL_NAME is provided
+        if [ -z "$MODEL_NAME" ]; then
+          echo "ERROR: MODEL_NAME environment variable is required"
+          echo "Usage: MODEL_NAME=Qwen/Qwen3-32B-Instruct docker-compose -f docker-compose.download.yml run --rm model-downloader"
+          exit 1
+        fi
+
+        echo "Downloading model: $MODEL_NAME"
+        echo ""
+
+        # Download the model using Python
+        python3 << 'EOF'
+        import os
+        import sys
+        from huggingface_hub import snapshot_download
+
+        model_name = os.getenv("MODEL_NAME")
+        cache_dir = "/data/huggingface"
+
+        try:
+            print(f"Starting download of {model_name}...")
+            print(f"Cache directory: {cache_dir}")
+            print("")
+
+            snapshot_download(
+                repo_id=model_name,
+                cache_dir=cache_dir,
+                resume_download=True,
+                local_files_only=False
+            )
+
+            print("")
+            print(f"✅ Successfully downloaded {model_name}")
+
+        except Exception as e:
+            print(f"❌ Error downloading model: {e}", file=sys.stderr)
+            sys.exit(1)
+        EOF
+
+        echo ""
+        echo "============================================"
+        echo "Download complete!"
+        echo "============================================"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Batch Model Downloader
+  # ===========================================================================
+  batch-downloader:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-batch-downloader
+    environment:
+      # Proxy settings
+      - HTTP_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - HTTPS_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - http_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - https_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+
+      # HuggingFace configuration
+      - HF_HOME=/data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+
+      # Models to download (from .env)
+      - CODE_TRADITIONAL_MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
+      - CODE_AGENTIC_MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - CHAT_ADVANCED_MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
+      - CHAT_FAST_MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
+      - CHAT_LIGHT_MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
+      - VISION_MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
+      - WHISPER_MODEL=${WHISPER_MODEL:-openai/whisper-small}
+
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+
+    network_mode: host
+
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        set -e
+        echo "============================================"
+        echo "FamilyAI Batch Model Downloader"
+        echo "============================================"
+        echo "Proxy: ${HTTP_PROXY:-Not configured}"
+        echo ""
+
+        # Install required packages
+        pip install -q huggingface-hub transformers
+
+        # Models to download
+        MODELS=(
+          "$CODE_TRADITIONAL_MODEL"
+          "$CODE_AGENTIC_MODEL"
+          "$CHAT_ADVANCED_MODEL"
+          "$CHAT_FAST_MODEL"
+          "$CHAT_LIGHT_MODEL"
+          "$VISION_MODEL"
+          "$WHISPER_MODEL"
+        )
+
+        START_TIME=$(date +%s)
+        SUCCESS_COUNT=0
+        FAIL_COUNT=0
+
+        for model in "$${MODELS[@]}"; do
+          echo ""
+          echo "----------------------------------------"
+          echo "Downloading: $model"
+          echo "----------------------------------------"
+
+          python3 << EOF
+        import os
+        import sys
+        from huggingface_hub import snapshot_download
+
+        model_name = "$model"
+        cache_dir = "/data/huggingface"
+
+        try:
+            snapshot_download(
+                repo_id=model_name,
+                cache_dir=cache_dir,
+                resume_download=True,
+                local_files_only=False
+            )
+            print(f"✅ Successfully downloaded {model_name}")
+
+        except Exception as e:
+            print(f"❌ Error downloading {model_name}: {e}", file=sys.stderr)
+            sys.exit(1)
+        EOF
+
+          if [ $$? -eq 0 ]; then
+            SUCCESS_COUNT=$$((SUCCESS_COUNT + 1))
+          else
+            FAIL_COUNT=$$((FAIL_COUNT + 1))
+          fi
+        done
+
+        END_TIME=$(date +%s)
+        DURATION=$$((END_TIME - START_TIME))
+
+        echo ""
+        echo "============================================"
+        echo "Batch download complete!"
+        echo "============================================"
+        echo "Success: $SUCCESS_COUNT"
+        echo "Failed: $FAIL_COUNT"
+        echo "Total time: $$((DURATION / 60)) minutes $$((DURATION % 60)) seconds"
+        echo ""
+
+        if [ $FAIL_COUNT -gt 0 ]; then
+          exit 1
+        fi
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

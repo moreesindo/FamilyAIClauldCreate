@@ -1,0 +1,139 @@
+# FamilyAI .gitignore
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Model cache and data
+models/
+data/
+*.bin
+*.safetensors
+*.gguf
+*.ggml
+
+# HuggingFace cache
+.cache/
+huggingface/
+
+# Logs
+logs/
+*.log
+*.log.*
+/var/log/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.venv
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.csr
+certs/
+
+# Backup files
+*.backup
+backups/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if using npm for any tools)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Test outputs
+test_results/
+benchmark_results/
+*.test.log
+
+# Local configuration overrides
+local.yaml
+local.json
+*.local.yml
+*.local.yaml
+
+# Database files (if using local SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Large files
+*.mp4
+*.mp3
+*.wav
+*.avi
+*.mov
+*.mkv

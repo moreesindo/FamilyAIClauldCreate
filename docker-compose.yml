@@ -1,0 +1,507 @@
+version: '3.8'
+
+# FamilyAI Docker Compose Configuration
+# Deploys all AI services on NVIDIA Jetson Thor
+
+services:
+  # ===========================================================================
+  # Code Assistant Services (Hot-swappable)
+  # ===========================================================================
+
+  code-traditional:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-code-traditional
+    runtime: nvidia
+    environment:
+      - MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${CODE_TRADITIONAL_MAX_MODEL_LEN:-32768}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - ENABLE_CUDA_GRAPH=${VLLM_ENABLE_CUDA_GRAPH:-true}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/code-traditional.env:/config/env
+    ports:
+      - "${CODE_TRADITIONAL_PORT:-8001}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  code-agentic:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-code-agentic
+    runtime: nvidia
+    environment:
+      - MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${CODE_AGENTIC_MAX_MODEL_LEN:-131072}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/code-agentic.env:/config/env
+    ports:
+      - "${CODE_AGENTIC_PORT:-8002}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - full  # Only start with --profile full
+
+  # ===========================================================================
+  # Chat Services (Always Running)
+  # ===========================================================================
+
+  chat-advanced:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-chat-advanced
+    runtime: nvidia
+    environment:
+      - MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${CHAT_ADVANCED_MAX_MODEL_LEN:-32768}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/chat-advanced.env:/config/env
+    ports:
+      - "${CHAT_ADVANCED_PORT:-8003}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  chat-fast:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-chat-fast
+    runtime: nvidia
+    environment:
+      - MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${CHAT_FAST_MAX_MODEL_LEN:-32768}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/chat-fast.env:/config/env
+    ports:
+      - "${CHAT_FAST_PORT:-8004}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  chat-light:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-chat-light
+    runtime: nvidia
+    environment:
+      - MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${CHAT_LIGHT_MAX_MODEL_LEN:-32768}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/chat-light.env:/config/env
+    ports:
+      - "${CHAT_LIGHT_PORT:-8005}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Vision Service
+  # ===========================================================================
+
+  vision:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-vision
+    runtime: nvidia
+    environment:
+      - MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
+      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      - MAX_MODEL_LEN=${VISION_MAX_MODEL_LEN:-32768}
+      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      - HF_HOME=/data/huggingface
+      - HTTP_PROXY=${PROXY_URL:-}
+      - HTTPS_PROXY=${PROXY_URL:-}
+      - http_proxy=${PROXY_URL:-}
+      - https_proxy=${PROXY_URL:-}
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./vllm/vision.env:/config/env
+    ports:
+      - "${VISION_PORT:-8006}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Speech Services
+  # ===========================================================================
+
+  whisper:
+    build:
+      context: ./whisper
+      dockerfile: Dockerfile
+    image: familyai/whisper:latest
+    container_name: familyai-whisper
+    runtime: nvidia
+    environment:
+      - MODEL=${WHISPER_MODEL:-openai/whisper-small}
+      - LANGUAGE=${WHISPER_LANGUAGE:-auto}
+      - HF_HOME=/data/huggingface
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./whisper/config.yaml:/app/config.yaml:ro
+    ports:
+      - "${WHISPER_PORT:-8007}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  piper:
+    build:
+      context: ./piper
+      dockerfile: Dockerfile
+    image: familyai/piper:latest
+    container_name: familyai-piper
+    environment:
+      - MODEL=${PIPER_MODEL:-en_US-lessac-medium}
+      - VOICE=${PIPER_VOICE:-lessac}
+    volumes:
+      - ./piper/config.yaml:/app/config.yaml:ro
+      - piper-models:/models
+    ports:
+      - "${PIPER_PORT:-8008}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Intelligent Routing Gateway
+  # ===========================================================================
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    image: familyai/gateway:latest
+    container_name: familyai-gateway
+    environment:
+      - LOG_LEVEL=${GATEWAY_LOG_LEVEL:-INFO}
+      - CODE_CONTEXT_THRESHOLD=${GATEWAY_CODE_CONTEXT_THRESHOLD:-8192}
+      - CHAT_SIMPLE_MAX_TOKENS=${GATEWAY_CHAT_SIMPLE_MAX_TOKENS:-100}
+      - CHAT_COMPLEX_MIN_TOKENS=${GATEWAY_CHAT_COMPLEX_MIN_TOKENS:-500}
+      - API_AUTH_ENABLED=${API_AUTH_ENABLED:-true}
+      - API_KEY=${API_KEY:-}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_REQUESTS_PER_MINUTE=${RATE_LIMIT_REQUESTS_PER_MINUTE:-60}
+      # Backend service URLs
+      - CODE_TRADITIONAL_URL=http://code-traditional:8000
+      - CODE_AGENTIC_URL=http://code-agentic:8000
+      - CHAT_ADVANCED_URL=http://chat-advanced:8000
+      - CHAT_FAST_URL=http://chat-fast:8000
+      - CHAT_LIGHT_URL=http://chat-light:8000
+      - VISION_URL=http://vision:8000
+      - WHISPER_URL=http://whisper:8000
+      - PIPER_URL=http://piper:8000
+    volumes:
+      - ./gateway/config.yaml:/app/config.yaml:ro
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      - code-traditional
+      - chat-advanced
+      - chat-fast
+      - chat-light
+      - vision
+      - whisper
+      - piper
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Web UI (Open WebUI)
+  # ===========================================================================
+
+  web-ui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: familyai-webui
+    environment:
+      - OLLAMA_BASE_URL=http://gateway:8080/v1
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change_this_secret}
+      - ENABLE_SIGNUP=${WEBUI_ENABLE_SIGNUP:-true}
+      - DEFAULT_USER_ROLE=${WEBUI_DEFAULT_USER_ROLE:-user}
+    volumes:
+      - ${WEBUI_DATA_DIR:-./data/open-webui}:/app/backend/data
+      - ./web-ui/config.json:/app/config.json:ro
+    ports:
+      - "${WEBUI_PORT:-3000}:8080"
+    depends_on:
+      - gateway
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Monitoring: Prometheus
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: familyai-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - monitoring
+      - full
+
+  # ===========================================================================
+  # Monitoring: Grafana
+  # ===========================================================================
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: familyai-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/familyai.json:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - familyai
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - monitoring
+      - full
+
+# =============================================================================
+# Networks
+# =============================================================================
+
+networks:
+  familyai:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# Volumes
+# =============================================================================
+
+volumes:
+  piper-models:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

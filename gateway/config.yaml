@@ -1,0 +1,69 @@
+# FamilyAI Gateway Configuration
+
+# Routing thresholds
+routing:
+  code:
+    context_threshold: 8192  # tokens, switch to agentic if exceeded
+    traditional_tasks:
+      - "completion"
+      - "generation"
+      - "fix"
+      - "refactor"
+    agentic_tasks:
+      - "analyze"
+      - "understand"
+      - "explain"
+      - "repository"
+
+  chat:
+    simple_max_tokens: 100   # route to lightweight (4B)
+    complex_min_tokens: 500  # route to advanced (32B)
+    # Otherwise route to fast (8B)
+
+# Backend services
+backends:
+  code_traditional:
+    url: ${CODE_TRADITIONAL_URL}
+    model_name: "qwen2.5-coder-32b"
+    max_context: 32768
+  code_agentic:
+    url: ${CODE_AGENTIC_URL}
+    model_name: "qwen3-coder-30b"
+    max_context: 131072
+  chat_advanced:
+    url: ${CHAT_ADVANCED_URL}
+    model_name: "qwen3-32b"
+    max_context: 32768
+  chat_fast:
+    url: ${CHAT_FAST_URL}
+    model_name: "qwen3-8b"
+    max_context: 32768
+  chat_light:
+    url: ${CHAT_LIGHT_URL}
+    model_name: "qwen3-4b"
+    max_context: 32768
+  vision:
+    url: ${VISION_URL}
+    model_name: "qwen2-vl-7b"
+    max_context: 32768
+  whisper:
+    url: ${WHISPER_URL}
+    model_name: "whisper-small"
+  piper:
+    url: ${PIPER_URL}
+    model_name: "piper-tts"
+
+# Authentication
+auth:
+  enabled: ${API_AUTH_ENABLED}
+  api_key: ${API_KEY}
+
+# Rate limiting
+rate_limit:
+  enabled: ${RATE_LIMIT_ENABLED}
+  requests_per_minute: ${RATE_LIMIT_REQUESTS_PER_MINUTE}
+
+# Logging
+logging:
+  level: ${LOG_LEVEL}
+  format: "json"
