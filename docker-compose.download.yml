@@ -45,7 +45,7 @@ services:
         echo "============================================"
         echo "FamilyAI Model Downloader"
         echo "============================================"
-        echo "Proxy: ${HTTP_PROXY:-Not configured}"
+        echo "Proxy: $${HTTP_PROXY:-Not configured}"
         echo "Cache directory: /data/huggingface"
         echo ""
 
@@ -142,7 +142,7 @@ services:
         echo "============================================"
         echo "FamilyAI Batch Model Downloader"
         echo "============================================"
-        echo "Proxy: ${HTTP_PROXY:-Not configured}"
+        echo "Proxy: $${HTTP_PROXY:-Not configured}"
         echo ""
 
         # Install required packages
