@@ -1,0 +1,86 @@
+{
+  "name": "FamilyAI",
+  "version": "1.0.0",
+  "models": [
+    {
+      "id": "auto",
+      "name": "Auto (Smart Routing)",
+      "description": "Automatically selects the best model based on your request",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "code-traditional",
+      "name": "Code Assistant (Traditional)",
+      "description": "Qwen2.5-Coder-32B - Best for code completion and generation",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "code-agentic",
+      "name": "Code Assistant (Agentic)",
+      "description": "Qwen3-Coder-30B-A3B - Best for multi-file analysis and long context",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "chat-advanced",
+      "name": "Chat (Advanced)",
+      "description": "Qwen3-32B - Best for complex reasoning and creative tasks",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "chat-fast",
+      "name": "Chat (Fast)",
+      "description": "Qwen3-8B - Balanced performance and quality",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "chat-light",
+      "name": "Chat (Light)",
+      "description": "Qwen3-4B - Fastest response for simple queries",
+      "owned_by": "familyai"
+    },
+    {
+      "id": "vision",
+      "name": "Vision Understanding",
+      "description": "Qwen2-VL-7B - Image analysis and visual Q&A",
+      "owned_by": "familyai"
+    }
+  ],
+  "api": {
+    "base_url": "http://gateway:8080/v1",
+    "type": "openai"
+  },
+  "features": {
+    "chat": true,
+    "vision": true,
+    "audio": true,
+    "code": true,
+    "streaming": true
+  },
+  "ui": {
+    "theme": "dark",
+    "title": "FamilyAI - Your Family AI Assistant",
+    "description": "Private, powerful AI running on your Jetson Thor",
+    "logo": null,
+    "footer": "Powered by Qwen, vLLM, and NVIDIA Jetson Thor"
+  },
+  "settings": {
+    "default_model": "auto",
+    "max_tokens": 4096,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "enable_community_sharing": false,
+    "enable_message_rating": true
+  },
+  "audio": {
+    "stt": {
+      "enabled": true,
+      "engine": "whisper",
+      "url": "http://whisper:8000"
+    },
+    "tts": {
+      "enabled": true,
+      "engine": "piper",
+      "url": "http://piper:8000"
+    }
+  }
+}

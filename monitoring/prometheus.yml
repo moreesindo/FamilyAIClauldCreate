@@ -1,0 +1,73 @@
+# Prometheus Configuration for FamilyAI
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'familyai'
+    environment: 'production'
+
+# Alert rules
+rule_files:
+  - 'alerts.yaml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # FamilyAI Gateway
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8080']
+    metrics_path: '/metrics'
+
+  # vLLM Services
+  - job_name: 'vllm-code-traditional'
+    static_configs:
+      - targets: ['code-traditional:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'vllm-code-agentic'
+    static_configs:
+      - targets: ['code-agentic:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'vllm-chat-advanced'
+    static_configs:
+      - targets: ['chat-advanced:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'vllm-chat-fast'
+    static_configs:
+      - targets: ['chat-fast:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'vllm-chat-light'
+    static_configs:
+      - targets: ['chat-light:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'vllm-vision'
+    static_configs:
+      - targets: ['vision:8000']
+    metrics_path: '/metrics'
+
+  # Speech Services
+  - job_name: 'whisper'
+    static_configs:
+      - targets: ['whisper:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'piper'
+    static_configs:
+      - targets: ['piper:8000']
+    metrics_path: '/metrics'
+
+  # Web UI (if it exposes metrics)
+  - job_name: 'webui'
+    static_configs:
+      - targets: ['web-ui:8080']
+    metrics_path: '/metrics'

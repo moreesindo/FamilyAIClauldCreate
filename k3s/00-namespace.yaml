@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: familyai
+  labels:
+    name: familyai
+    app.kubernetes.io/name: familyai
+    app.kubernetes.io/part-of: familyai

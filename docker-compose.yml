@@ -29,6 +29,15 @@ services:
       - ./vllm/code-traditional.env:/config/env
     ports:
       - "${CODE_TRADITIONAL_PORT:-8001}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${CODE_TRADITIONAL_MAX_MODEL_LEN:-32768}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:
@@ -70,6 +79,15 @@ services:
       - ./vllm/code-agentic.env:/config/env
     ports:
       - "${CODE_AGENTIC_PORT:-8002}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${CODE_AGENTIC_MAX_MODEL_LEN:-131072}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:
@@ -117,6 +135,15 @@ services:
       - ./vllm/chat-advanced.env:/config/env
     ports:
       - "${CHAT_ADVANCED_PORT:-8003}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${CHAT_ADVANCED_MAX_MODEL_LEN:-32768}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:
@@ -158,6 +185,15 @@ services:
       - ./vllm/chat-fast.env:/config/env
     ports:
       - "${CHAT_FAST_PORT:-8004}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${CHAT_FAST_MAX_MODEL_LEN:-32768}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:
@@ -199,6 +235,15 @@ services:
       - ./vllm/chat-light.env:/config/env
     ports:
       - "${CHAT_LIGHT_PORT:-8005}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${CHAT_LIGHT_MAX_MODEL_LEN:-32768}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:
@@ -244,6 +289,15 @@ services:
       - ./vllm/vision.env:/config/env
     ports:
       - "${VISION_PORT:-8006}:8000"
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
+      --quantization ${VLLM_QUANTIZATION:-awq}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${VISION_MAX_MODEL_LEN:-32768}
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --host 0.0.0.0
+      --port 8000
     deploy:
       resources:
         reservations:

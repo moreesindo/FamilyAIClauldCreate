@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: familyai-gateway
+  namespace: familyai
+  labels:
+    app: familyai-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: familyai-gateway
+  template:
+    metadata:
+      labels:
+        app: familyai-gateway
+    spec:
+      containers:
+      - name: gateway
+        image: familyai/gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: familyai-config
+              key: GATEWAY_LOG_LEVEL
+        - name: CODE_CONTEXT_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: familyai-config
+              key: GATEWAY_CODE_CONTEXT_THRESHOLD
+        - name: CODE_TRADITIONAL_URL
+          value: "http://code-traditional:8000"
+        - name: CODE_AGENTIC_URL
+          value: "http://code-agentic:8000"
+        - name: CHAT_ADVANCED_URL
+          value: "http://chat-advanced:8000"
+        - name: CHAT_FAST_URL
+          value: "http://chat-fast:8000"
+        - name: CHAT_LIGHT_URL
+          value: "http://chat-light:8000"
+        - name: VISION_URL
+          value: "http://vision:8000"
+        - name: WHISPER_URL
+          value: "http://whisper:8000"
+        - name: PIPER_URL
+          value: "http://piper:8000"
+        - name: API_AUTH_ENABLED
+          value: "false"
+        - name: RATE_LIMIT_ENABLED
+          value: "true"
+        - name: RATE_LIMIT_REQUESTS_PER_MINUTE
+          value: "60"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: familyai-gateway
+  namespace: familyai
+spec:
+  type: LoadBalancer
+  selector:
+    app: familyai-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http

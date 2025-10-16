@@ -1,0 +1,39 @@
+# Piper TTS Configuration
+
+# Model settings
+model:
+  # Default voice model (will be downloaded on first use)
+  # Available voices: https://github.com/rhasspy/piper/blob/master/VOICES.md
+  name: "en_US-lessac-medium"  # High-quality US English voice
+  # Alternative voices:
+  # - en_US-amy-medium (Female, US)
+  # - en_US-ryan-medium (Male, US)
+  # - en_GB-alan-medium (Male, UK)
+  # - zh_CN-huayan-medium (Female, Chinese)
+  speaker_id: 0  # For multi-speaker models
+
+# Audio output settings
+audio:
+  sample_rate: 22050
+  quality: "medium"  # low, medium, high
+  speed: 1.0  # Speech speed multiplier
+  noise_scale: 0.667
+  noise_w: 0.8
+  length_scale: 1.0
+
+# API settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  log_level: "info"
+
+# Cache and models
+cache:
+  models_dir: "/models"
+  download_on_startup: true
+
+# Output format
+output:
+  format: "wav"  # wav, mp3
+  bitrate: 128  # For MP3 output

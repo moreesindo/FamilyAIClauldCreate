@@ -69,7 +69,7 @@ sleep 10
 # Check service health
 echo ""
 echo "Checking service health..."
-docker-compose ps
+docker compose ps
 
 echo ""
 echo -e "${GREEN}✅ Deployment complete!${NC}"
@@ -82,5 +82,5 @@ if [ "$MODE" == "full" ] || [ "$MODE" == "monitoring" ]; then
     echo "- Grafana: http://localhost:${GRAFANA_PORT:-3001}"
 fi
 echo ""
-echo "To view logs: docker-compose logs -f [service-name]"
-echo "To stop: docker-compose down"
+echo "To view logs: docker compose logs -f [service-name]"
+echo "To stop: docker compose down"

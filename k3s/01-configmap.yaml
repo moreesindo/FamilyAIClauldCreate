@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: familyai-config
+  namespace: familyai
+data:
+  # vLLM Configuration
+  VLLM_GPU_MEMORY_UTILIZATION: "0.9"
+  VLLM_QUANTIZATION: "awq"
+  VLLM_TENSOR_PARALLEL_SIZE: "1"
+
+  # Proxy Configuration (update as needed)
+  PROXY_URL: "http://192.168.3.84:2526"
+  NO_PROXY: "localhost,127.0.0.1,10.0.0.0/8"
+
+  # HuggingFace
+  HF_HOME: "/data/huggingface"
+
+  # Gateway Configuration
+  GATEWAY_LOG_LEVEL: "INFO"
+  GATEWAY_CODE_CONTEXT_THRESHOLD: "8192"
+  GATEWAY_CHAT_SIMPLE_MAX_TOKENS: "100"
+  GATEWAY_CHAT_COMPLEX_MIN_TOKENS: "500"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: familyai-models
+  namespace: familyai
+data:
+  CODE_TRADITIONAL_MODEL: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  CODE_AGENTIC_MODEL: "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+  CHAT_ADVANCED_MODEL: "Qwen/Qwen3-32B-Instruct"
+  CHAT_FAST_MODEL: "Qwen/Qwen3-8B-Instruct"
+  CHAT_LIGHT_MODEL: "Qwen/Qwen3-4B-Instruct"
+  VISION_MODEL: "Qwen/Qwen2-VL-7B-Instruct"
+  WHISPER_MODEL: "openai/whisper-small"

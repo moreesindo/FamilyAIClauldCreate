@@ -1,0 +1,74 @@
+# Prometheus Alert Rules for FamilyAI
+
+groups:
+  - name: familyai_alerts
+    interval: 30s
+    rules:
+      # Service Down Alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 5 minutes."
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 90% for more than 5 minutes."
+
+      # High Request Latency
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency on {{ $labels.job }}"
+          description: "95th percentile latency is above 10 seconds."
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is above 5% for more than 5 minutes."
+
+      # GPU Temperature (if available)
+      - alert: HighGPUTemperature
+        expr: nvidia_gpu_temperature_celsius > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High GPU temperature on {{ $labels.instance }}"
+          description: "GPU temperature is above 80°C for more than 10 minutes."
+
+      # Model Loading Failure
+      - alert: ModelLoadingFailure
+        expr: increase(vllm_model_load_failures_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Model loading failure on {{ $labels.job }}"
+          description: "A model failed to load in the last 5 minutes."
+
+      # Queue Too Long
+      - alert: RequestQueueTooLong
+        expr: vllm_num_requests_waiting > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Request queue too long on {{ $labels.job }}"
+          description: "More than 50 requests are waiting in queue."
