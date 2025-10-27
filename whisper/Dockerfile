@@ -1,5 +1,21 @@
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
+# Accept proxy build args
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG NO_PROXY
+ARG no_proxy
+
+# Set proxy environment variables for build
+ENV HTTP_PROXY=$HTTP_PROXY \
+    HTTPS_PROXY=$HTTPS_PROXY \
+    http_proxy=$http_proxy \
+    https_proxy=$https_proxy \
+    NO_PROXY=$NO_PROXY \
+    no_proxy=$no_proxy
+
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -17,13 +33,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN python3 -m pip install --no-cache-dir --upgrade pip
 
-# Install Python dependencies
+# Install Python dependencies with flexible versions
 RUN pip install --no-cache-dir \
-    faster-whisper==0.10.0 \
-    fastapi==0.104.1 \
-    uvicorn[standard]==0.24.0 \
-    python-multipart==0.0.6 \
-    pydantic==2.5.0
+    faster-whisper>=0.10.0 \
+    fastapi>=0.104.1,<1.0.0 \
+    uvicorn[standard]>=0.24.0,<1.0.0 \
+    python-multipart>=0.0.6 \
+    pydantic>=2.5,<3.0
 
 # Copy configuration and application code
 COPY config.yaml /app/config.yaml

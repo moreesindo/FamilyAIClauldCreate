@@ -4,7 +4,8 @@
       "WebSearch",
       "WebFetch(domain:evalplus.github.io)",
       "Bash(chmod:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

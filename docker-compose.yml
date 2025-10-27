@@ -327,6 +327,13 @@ services:
     build:
       context: ./whisper
       dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - http_proxy=${PROXY_URL:-}
+        - https_proxy=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,.local}
+        - no_proxy=${NO_PROXY:-localhost,127.0.0.1,.local}
     image: familyai/whisper:latest
     container_name: familyai-whisper
     runtime: nvidia
@@ -364,6 +371,13 @@ services:
     build:
       context: ./piper
       dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - http_proxy=${PROXY_URL:-}
+        - https_proxy=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,.local}
+        - no_proxy=${NO_PROXY:-localhost,127.0.0.1,.local}
     image: familyai/piper:latest
     container_name: familyai-piper
     environment:
@@ -397,6 +411,13 @@ services:
     build:
       context: ./gateway
       dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=${PROXY_URL:-}
+        - HTTPS_PROXY=${PROXY_URL:-}
+        - http_proxy=${PROXY_URL:-}
+        - https_proxy=${PROXY_URL:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,.local}
+        - no_proxy=${NO_PROXY:-localhost,127.0.0.1,.local}
     image: familyai/gateway:latest
     container_name: familyai-gateway
     environment:
