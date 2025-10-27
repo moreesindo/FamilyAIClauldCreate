@@ -29,14 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies with flexible versions
-RUN pip install --no-cache-dir \
-    piper-tts>=1.2.0 \
-    fastapi>=0.104.1,<1.0.0 \
-    uvicorn[standard]>=0.24.0,<1.0.0 \
-    python-multipart>=0.0.6 \
-    pydantic>=2.5,<3.0 \
-    pyyaml>=6.0.0
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy configuration and application code
 COPY config.yaml /app/config.yaml
