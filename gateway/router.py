@@ -34,7 +34,15 @@ def expand_env_vars(config):
         return {k: expand_env_vars(v) for k, v in config.items()}
     elif isinstance(config, str) and config.startswith("${") and config.endswith("}"):
         var_name = config[2:-1]
-        return os.getenv(var_name, config)
+        value = os.getenv(var_name, config)
+        # Convert string boolean values to actual booleans
+        if isinstance(value, str):
+            if value.lower() in ('true', 'false'):
+                return value.lower() == 'true'
+            # Convert string numbers to integers
+            if value.isdigit():
+                return int(value)
+        return value
     return config
 
 CONFIG = expand_env_vars(CONFIG)
