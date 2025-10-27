@@ -38,11 +38,33 @@ async def load_model():
 
     logger.info(f"Loading Whisper model: {CONFIG['model']['name']}")
 
+    # Auto-detect CUDA availability
+    device = CONFIG['model']['device']
+    compute_type = CONFIG['model']['compute_type']
+
+    if device == "auto" or device == "cuda":
+        try:
+            import ctranslate2
+            # Try to check if CUDA is available
+            if ctranslate2.get_cuda_device_count() > 0:
+                device = "cuda"
+                logger.info("CUDA detected, using GPU acceleration")
+            else:
+                device = "cpu"
+                compute_type = "int8"  # Use int8 for CPU
+                logger.info("CUDA not available, falling back to CPU")
+        except Exception as e:
+            device = "cpu"
+            compute_type = "int8"
+            logger.warning(f"CUDA check failed ({e}), falling back to CPU")
+
+    logger.info(f"Device: {device}, Compute type: {compute_type}")
+
     try:
         model = WhisperModel(
             CONFIG['model']['name'],
-            device=CONFIG['model']['device'],
-            compute_type=CONFIG['model']['compute_type'],
+            device=device,
+            compute_type=compute_type,
             download_root=CONFIG['cache']['directory']
         )
         logger.info("Whisper model loaded successfully")

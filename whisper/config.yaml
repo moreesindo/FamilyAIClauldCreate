@@ -3,8 +3,8 @@
 # Model settings
 model:
   name: "openai/whisper-small"  # Can be: tiny, base, small, medium, large
-  device: "cuda"  # cuda or cpu
-  compute_type: "float16"  # float16, int8, or float32
+  device: "auto"  # auto, cuda, or cpu (auto will detect CUDA and fallback to CPU)
+  compute_type: "float16"  # float16, int8, or float32 (auto-adjusted for CPU)
 
 # Language settings
 language:
