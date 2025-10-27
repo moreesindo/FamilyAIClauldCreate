@@ -126,7 +126,7 @@ async def health_check():
 
 @app.get("/v1/models")
 async def list_models(auth: bool = Depends(verify_api_key)):
-    """List available models"""
+    """List available models (OpenAI format)"""
     models = [
         {"id": "auto", "object": "model", "owned_by": "familyai"},
         {"id": "code-traditional", "object": "model", "owned_by": "familyai"},
@@ -137,6 +137,132 @@ async def list_models(auth: bool = Depends(verify_api_key)):
         {"id": "vision", "object": "model", "owned_by": "familyai"},
     ]
     return {"object": "list", "data": models}
+
+@app.get("/v1/api/tags")
+@app.get("/api/tags")
+async def list_models_ollama(auth: bool = Depends(verify_api_key)):
+    """List available models (Ollama format for Open WebUI compatibility)"""
+    models = [
+        {
+            "name": "auto",
+            "model": "auto",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 0,
+            "digest": "familyai-auto",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "familyai",
+                "families": ["familyai"],
+                "parameter_size": "auto",
+                "quantization_level": "auto"
+            }
+        },
+        {
+            "name": "code-traditional",
+            "model": "code-traditional",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 18000000000,
+            "digest": "familyai-code-traditional",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen2.5-coder",
+                "families": ["qwen"],
+                "parameter_size": "32B",
+                "quantization_level": "INT4"
+            }
+        },
+        {
+            "name": "code-agentic",
+            "model": "code-agentic",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 15000000000,
+            "digest": "familyai-code-agentic",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen3-coder",
+                "families": ["qwen"],
+                "parameter_size": "30B-MoE",
+                "quantization_level": "INT4"
+            }
+        },
+        {
+            "name": "chat-advanced",
+            "model": "chat-advanced",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 18000000000,
+            "digest": "familyai-chat-advanced",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen3",
+                "families": ["qwen"],
+                "parameter_size": "32B",
+                "quantization_level": "INT4"
+            }
+        },
+        {
+            "name": "chat-fast",
+            "model": "chat-fast",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 4000000000,
+            "digest": "familyai-chat-fast",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen3",
+                "families": ["qwen"],
+                "parameter_size": "8B",
+                "quantization_level": "INT4"
+            }
+        },
+        {
+            "name": "chat-light",
+            "model": "chat-light",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 2000000000,
+            "digest": "familyai-chat-light",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen3",
+                "families": ["qwen"],
+                "parameter_size": "4B",
+                "quantization_level": "INT4"
+            }
+        },
+        {
+            "name": "vision",
+            "model": "vision",
+            "modified_at": "2025-01-01T00:00:00Z",
+            "size": 4000000000,
+            "digest": "familyai-vision",
+            "details": {
+                "parent_model": "",
+                "format": "familyai",
+                "family": "qwen2-vl",
+                "families": ["qwen"],
+                "parameter_size": "7B",
+                "quantization_level": "INT4"
+            }
+        }
+    ]
+    return {"models": models}
+
+@app.get("/v1/api/ps")
+@app.get("/api/ps")
+async def list_running_models(auth: bool = Depends(verify_api_key)):
+    """List running models (Ollama format for Open WebUI compatibility)"""
+    # Return empty list as models are always loaded in our architecture
+    return {"models": []}
+
+@app.get("/v1/api/version")
+@app.get("/api/version")
+async def get_version(auth: bool = Depends(verify_api_key)):
+    """Get API version (Ollama format for Open WebUI compatibility)"""
+    return {"version": "1.0.0"}
 
 @app.post("/v1/chat/completions")
 @limiter.limit(f"{CONFIG['rate_limit']['requests_per_minute']}/minute")
