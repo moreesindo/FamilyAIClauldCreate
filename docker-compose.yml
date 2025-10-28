@@ -338,7 +338,7 @@ services:
     container_name: familyai-whisper
     runtime: nvidia
     environment:
-      - MODEL=${WHISPER_MODEL:-openai/whisper-small}
+      - MODEL=${WHISPER_MODEL:-Systran/faster-whisper-small}
       - LANGUAGE=${WHISPER_LANGUAGE:-auto}
       - HF_HOME=/data/huggingface
     volumes:

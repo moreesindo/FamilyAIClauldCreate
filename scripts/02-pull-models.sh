@@ -128,22 +128,22 @@ for model in "${MODELS_TO_DOWNLOAD[@]}"; do
             download_model "${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}" "Code Traditional (Qwen2.5-Coder-32B)"
             ;;
         code-agentic)
-            download_model "${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}" "Code Agentic (Qwen3-Coder-30B-A3B)"
+            download_model "${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-Instruct-2507}" "Code Agentic (Qwen3-30B-A3B-MoE)"
             ;;
         chat-advanced)
-            download_model "${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}" "Chat Advanced (Qwen3-32B)"
+            download_model "${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B}" "Chat Advanced (Qwen3-32B)"
             ;;
         chat-fast)
-            download_model "${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}" "Chat Fast (Qwen3-8B)"
+            download_model "${CHAT_FAST_MODEL:-Qwen/Qwen3-8B}" "Chat Fast (Qwen3-8B)"
             ;;
         chat-light)
-            download_model "${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}" "Chat Light (Qwen3-4B)"
+            download_model "${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct-2507}" "Chat Light (Qwen3-4B)"
             ;;
         vision)
-            download_model "${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}" "Vision (Qwen2-VL-7B)"
+            download_model "${VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}" "Vision (Qwen3-VL-8B)"
             ;;
         whisper)
-            download_model "${WHISPER_MODEL:-openai/whisper-small}" "Whisper ASR (Small)"
+            download_model "${WHISPER_MODEL:-Systran/faster-whisper-small}" "Whisper ASR (Small, CTranslate2)"
             ;;
         *)
             echo -e "${RED}Unknown model: $model${NC}"

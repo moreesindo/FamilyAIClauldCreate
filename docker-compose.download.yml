@@ -122,12 +122,12 @@ services:
 
       # Models to download (from .env)
       - CODE_TRADITIONAL_MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
-      - CODE_AGENTIC_MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
-      - CHAT_ADVANCED_MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
-      - CHAT_FAST_MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
-      - CHAT_LIGHT_MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
-      - VISION_MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
-      - WHISPER_MODEL=${WHISPER_MODEL:-openai/whisper-small}
+      - CODE_AGENTIC_MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-Instruct-2507}
+      - CHAT_ADVANCED_MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B}
+      - CHAT_FAST_MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B}
+      - CHAT_LIGHT_MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      - VISION_MODEL=${VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
+      - WHISPER_MODEL=${WHISPER_MODEL:-Systran/faster-whisper-small}
 
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
