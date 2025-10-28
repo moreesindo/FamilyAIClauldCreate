@@ -14,7 +14,6 @@ services:
     runtime: nvidia
     environment:
       - MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${CODE_TRADITIONAL_MAX_MODEL_LEN:-32768}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -32,7 +31,6 @@ services:
     command: >
       python3 -m vllm.entrypoints.openai.api_server
       --model ${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${CODE_TRADITIONAL_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -64,8 +62,7 @@ services:
     container_name: familyai-code-agentic
     runtime: nvidia
     environment:
-      - MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-Instruct-2507}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${CODE_AGENTIC_MAX_MODEL_LEN:-131072}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -81,8 +78,7 @@ services:
       - "${CODE_AGENTIC_PORT:-8002}:8000"
     command: >
       python3 -m vllm.entrypoints.openai.api_server
-      --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
+      --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-Instruct-2507}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${CODE_AGENTIC_MAX_MODEL_LEN:-131072}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -120,8 +116,7 @@ services:
     container_name: familyai-chat-advanced
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${CHAT_ADVANCED_MAX_MODEL_LEN:-32768}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -137,8 +132,7 @@ services:
       - "${CHAT_ADVANCED_PORT:-8003}:8000"
     command: >
       python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
+      --model ${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${CHAT_ADVANCED_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -170,8 +164,7 @@ services:
     container_name: familyai-chat-fast
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - MODEL=${CHAT_FAST_MODEL:-Qwen/Qwen3-8B}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${CHAT_FAST_MAX_MODEL_LEN:-32768}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -187,8 +180,7 @@ services:
       - "${CHAT_FAST_PORT:-8004}:8000"
     command: >
       python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_FAST_MODEL:-Qwen/Qwen3-8B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
+      --model ${CHAT_FAST_MODEL:-Qwen/Qwen3-8B}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${CHAT_FAST_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -220,8 +212,7 @@ services:
     container_name: familyai-chat-light
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - MODEL=${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${CHAT_LIGHT_MAX_MODEL_LEN:-32768}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -237,8 +228,7 @@ services:
       - "${CHAT_LIGHT_PORT:-8005}:8000"
     command: >
       python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
+      --model ${CHAT_LIGHT_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${CHAT_LIGHT_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -274,8 +264,7 @@ services:
     container_name: familyai-vision
     runtime: nvidia
     environment:
-      - MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
-      - QUANTIZATION=${VLLM_QUANTIZATION:-awq}
+      - MODEL=${VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
       - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       - MAX_MODEL_LEN=${VISION_MAX_MODEL_LEN:-32768}
       - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
@@ -291,8 +280,7 @@ services:
       - "${VISION_PORT:-8006}:8000"
     command: >
       python3 -m vllm.entrypoints.openai.api_server
-      --model ${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct}
-      --quantization ${VLLM_QUANTIZATION:-awq}
+      --model ${VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
       --max-model-len ${VISION_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
