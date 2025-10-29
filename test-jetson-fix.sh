@@ -15,35 +15,97 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 1. 验证配置文件语法
-echo -e "${YELLOW}步骤 1: 验证 docker-compose.yml 语法...${NC}"
-if docker compose config > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ docker-compose.yml 语法正确${NC}"
-else
-    echo -e "${RED}✗ docker-compose.yml 语法错误，请检查${NC}"
+# 1. 验证 .env 配置文件
+echo -e "${YELLOW}步骤 1: 验证 .env 配置文件...${NC}"
+if [ ! -f .env ]; then
+    echo -e "${RED}✗ .env 文件不存在${NC}"
+    exit 1
+fi
+
+# 检查关键配置项
+GPU_MEM_UTIL=$(grep "^VLLM_GPU_MEMORY_UTILIZATION=" .env | cut -d'=' -f2)
+CHAT_LIGHT_LEN=$(grep "^CHAT_LIGHT_MAX_MODEL_LEN=" .env | cut -d'=' -f2)
+HF_HOME=$(grep "^HF_HOME=" .env | cut -d'=' -f2)
+
+echo "  VLLM_GPU_MEMORY_UTILIZATION = ${GPU_MEM_UTIL}"
+echo "  CHAT_LIGHT_MAX_MODEL_LEN = ${CHAT_LIGHT_LEN}"
+echo "  HF_HOME = ${HF_HOME}"
+
+# 验证配置值是否合理
+if (( $(echo "$GPU_MEM_UTIL > 0.7" | bc -l) )); then
+    echo -e "${RED}✗ GPU 内存利用率 ${GPU_MEM_UTIL} 过高（建议 ≤ 0.5）${NC}"
+    exit 1
+fi
+
+if [ "$CHAT_LIGHT_LEN" -gt 32768 ]; then
+    echo -e "${RED}✗ chat-light 上下文长度 ${CHAT_LIGHT_LEN} 过大（建议 ≤ 16384）${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ .env 配置值合理${NC}"
+echo ""
+
+# 2. 验证 docker-compose.yml 语法和实际配置
+echo -e "${YELLOW}步骤 2: 验证 docker-compose.yml 配置...${NC}"
+if ! docker compose config > /dev/null 2>&1; then
+    echo -e "${RED}✗ docker-compose.yml 语法错误${NC}"
     docker compose config
     exit 1
 fi
+
+# 检查 docker-compose 实际会使用的值
+COMPOSED_CONFIG=$(docker compose config 2>/dev/null)
+ACTUAL_GPU_MEM=$(echo "$COMPOSED_CONFIG" | grep -A 50 "chat-light:" | grep "gpu-memory-utilization" | head -1 | grep -oP '\d+\.\d+')
+ACTUAL_MAX_LEN=$(echo "$COMPOSED_CONFIG" | grep -A 50 "chat-light:" | grep "max-model-len" | head -1 | grep -oP '\d+')
+
+echo "  实际 GPU 内存利用率: ${ACTUAL_GPU_MEM}"
+echo "  实际最大上下文长度: ${ACTUAL_MAX_LEN}"
+
+if (( $(echo "$ACTUAL_GPU_MEM > 0.7" | bc -l) )); then
+    echo -e "${RED}✗ Docker Compose 实际会使用 ${ACTUAL_GPU_MEM} GPU 利用率，过高！${NC}"
+    echo -e "${YELLOW}提示: 检查 docker-compose.yml 中是否有硬编码的默认值${NC}"
+    exit 1
+fi
+
+if [ "$ACTUAL_MAX_LEN" -gt 32768 ]; then
+    echo -e "${RED}✗ Docker Compose 实际会使用 ${ACTUAL_MAX_LEN} 上下文长度，过大！${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ docker-compose.yml 配置正确${NC}"
 echo ""
 
-# 2. 停止所有现有容器
-echo -e "${YELLOW}步骤 2: 停止所有现有容器...${NC}"
+# 3. 停止所有现有容器
+echo -e "${YELLOW}步骤 3: 停止所有现有容器...${NC}"
 docker compose down
 echo -e "${GREEN}✓ 所有容器已停止${NC}"
 echo ""
 
-# 3. 检查 GPU 状态
-echo -e "${YELLOW}步骤 3: 检查 GPU 状态...${NC}"
-nvidia-smi --query-gpu=index,name,memory.total,memory.free,memory.used --format=csv
+# 4. 检查 GPU 状态
+echo -e "${YELLOW}步骤 4: 检查 GPU 状态...${NC}"
+nvidia-smi --query-gpu=index,name,memory.total,memory.free,memory.used --format=csv 2>/dev/null || echo "  nvidia-smi 无法查询 GPU（Jetson Thor 正常现象）"
 echo ""
 
-# 4. 检查系统内存
-echo -e "${YELLOW}步骤 4: 检查系统内存...${NC}"
+# 5. 检查系统内存
+echo -e "${YELLOW}步骤 5: 检查系统内存状态...${NC}"
 free -h
+MEM_AVAILABLE=$(free -g | awk '/^Mem:/ {print $7}')
 echo ""
 
-# 5. 测试启动 chat-light (最轻量的服务)
-echo -e "${YELLOW}步骤 5: 测试启动 chat-light 服务...${NC}"
+if [ "$MEM_AVAILABLE" -lt 60 ]; then
+    echo -e "${RED}✗ 可用内存仅 ${MEM_AVAILABLE}GB，建议至少 60GB${NC}"
+    echo -e "${YELLOW}警告: 内存不足可能导致容器启动失败或系统崩溃${NC}"
+    echo -e "${YELLOW}建议: 执行 'sudo reboot' 释放被锁定的内存${NC}"
+    read -p "是否继续启动容器？(y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+echo ""
+
+# 6. 测试启动 chat-light (最轻量的服务)
+echo -e "${YELLOW}步骤 6: 测试启动 chat-light 服务...${NC}"
 echo "启动容器..."
 docker compose up -d chat-light
 
@@ -53,16 +115,75 @@ sleep 30
 # 检查容器状态
 if docker ps | grep -q familyai-chat-light; then
     echo -e "${GREEN}✓ chat-light 容器正在运行${NC}"
+    echo ""
+
+    # 7. 验证容器实际使用的配置参数
+    echo -e "${YELLOW}步骤 7: 验证容器实际使用的配置...${NC}"
+
+    ACTUAL_USED_GPU_MEM=$(docker logs familyai-chat-light 2>&1 | grep "gpu_memory_utilization" | tail -1 | grep -oP '\d+\.\d+' | head -1)
+    ACTUAL_USED_MAX_LEN=$(docker logs familyai-chat-light 2>&1 | grep "max_model_len" | tail -1 | grep -oP '\d+')
+
+    echo "  容器实际使用的 GPU 内存利用率: ${ACTUAL_USED_GPU_MEM}"
+    echo "  容器实际使用的上下文长度: ${ACTUAL_USED_MAX_LEN}"
+
+    # 验证实际使用的值
+    VALIDATION_FAILED=0
+    if [ ! -z "$ACTUAL_USED_GPU_MEM" ] && (( $(echo "$ACTUAL_USED_GPU_MEM > 0.7" | bc -l) )); then
+        echo -e "${RED}✗ 容器实际使用了 ${ACTUAL_USED_GPU_MEM} GPU 利用率（预期 ≤ 0.5）${NC}"
+        VALIDATION_FAILED=1
+    fi
+
+    if [ ! -z "$ACTUAL_USED_MAX_LEN" ] && [ "$ACTUAL_USED_MAX_LEN" -gt 32768 ]; then
+        echo -e "${RED}✗ 容器实际使用了 ${ACTUAL_USED_MAX_LEN} 上下文长度（预期 ≤ 16384）${NC}"
+        VALIDATION_FAILED=1
+    fi
+
+    if [ $VALIDATION_FAILED -eq 1 ]; then
+        echo -e "${RED}配置验证失败！容器使用了错误的参数${NC}"
+        echo -e "${YELLOW}可能原因：${NC}"
+        echo "  1. .env 文件未正确同步到服务器"
+        echo "  2. docker-compose.yml 中有硬编码的默认值"
+        echo "  3. 容器缓存导致使用了旧配置"
+        echo ""
+        echo -e "${YELLOW}建议操作：${NC}"
+        echo "  1. 停止容器: docker compose down"
+        echo "  2. 验证 .env 和 docker-compose.yml 文件"
+        echo "  3. 强制重建: docker compose up -d chat-light --force-recreate"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ 容器配置参数正确${NC}"
+    echo ""
+
+    # 8. 检查内存实际占用
+    echo -e "${YELLOW}步骤 8: 检查内存实际占用...${NC}"
+    sleep 5  # 等待内存稳定
+    free -h
+    MEM_AVAILABLE_AFTER=$(free -g | awk '/^Mem:/ {print $7}')
+    MEM_USED=$((MEM_AVAILABLE - MEM_AVAILABLE_AFTER))
+
+    echo "  启动前可用内存: ${MEM_AVAILABLE}GB"
+    echo "  启动后可用内存: ${MEM_AVAILABLE_AFTER}GB"
+    echo "  容器占用内存: ~${MEM_USED}GB"
+
+    if [ "$MEM_USED" -gt 50 ]; then
+        echo -e "${RED}✗ 容器占用内存过高 (${MEM_USED}GB)，预期应小于 35GB${NC}"
+        echo -e "${YELLOW}这通常表示配置参数未生效，容器使用了过大的上下文长度${NC}"
+    else
+        echo -e "${GREEN}✓ 内存占用正常${NC}"
+    fi
+    echo ""
 
     # 查看日志中是否有错误
-    echo ""
     echo "最近的日志输出："
-    docker logs familyai-chat-light --tail 50
+    docker logs familyai-chat-light --tail 30
 
     # 检查是否有启动成功的标志
     if docker logs familyai-chat-light 2>&1 | grep -q "Application startup complete\|Uvicorn running"; then
+        echo ""
         echo -e "${GREEN}✓✓✓ chat-light 启动成功！${NC}"
     else
+        echo ""
         echo -e "${YELLOW}⚠ chat-light 容器在运行，但可能还在初始化中${NC}"
         echo "请手动检查日志: docker logs familyai-chat-light -f"
     fi
@@ -74,7 +195,7 @@ else
 fi
 echo ""
 
-# 6. 提示下一步操作
+# 9. 提示下一步操作
 echo -e "${YELLOW}=========================================="
 echo "测试完成！"
 echo "==========================================${NC}"
