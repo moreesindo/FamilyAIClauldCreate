@@ -23,6 +23,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/code-traditional.env:/config/env
@@ -36,6 +38,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
@@ -71,6 +78,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/code-agentic.env:/config/env
@@ -84,6 +93,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
@@ -125,6 +139,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/chat-advanced.env:/config/env
@@ -138,6 +154,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
@@ -173,6 +194,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/chat-fast.env:/config/env
@@ -186,6 +209,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
@@ -221,6 +249,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/chat-light.env:/config/env
@@ -234,6 +264,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
@@ -273,6 +308,8 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
+      - VLLM_USE_V1=false
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
       - ./vllm/vision.env:/config/env
@@ -286,6 +323,11 @@ services:
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+    shm_size: '16gb'
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
     deploy:
       resources:
         reservations:
