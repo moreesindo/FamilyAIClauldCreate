@@ -23,7 +23,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
@@ -78,7 +78,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
@@ -139,7 +139,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
@@ -194,7 +194,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
@@ -249,7 +249,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
@@ -308,7 +308,7 @@ services:
       - HTTPS_PROXY=${PROXY_URL:-}
       - http_proxy=${PROXY_URL:-}
       - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=false
+      - VLLM_USE_V1=0
       - VLLM_WORKER_MULTIPROC_METHOD=spawn
     volumes:
       - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
