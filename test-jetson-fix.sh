@@ -55,24 +55,35 @@ fi
 
 # 检查 docker-compose 实际会使用的值
 COMPOSED_CONFIG=$(docker compose config 2>/dev/null)
-ACTUAL_GPU_MEM=$(echo "$COMPOSED_CONFIG" | grep -A 50 "chat-light:" | grep "gpu-memory-utilization" | head -1 | grep -oP '\d+\.\d+')
-ACTUAL_MAX_LEN=$(echo "$COMPOSED_CONFIG" | grep -A 50 "chat-light:" | grep "max-model-len" | head -1 | grep -oP '\d+')
+
+# 使用兼容的正则表达式提取值 (避免使用 -oP)
+ACTUAL_GPU_MEM=$(echo "$COMPOSED_CONFIG" | grep -A 100 "chat-light:" | grep "gpu-memory-utilization" | head -1 | sed -n 's/.*gpu-memory-utilization \([0-9.]*\).*/\1/p')
+ACTUAL_MAX_LEN=$(echo "$COMPOSED_CONFIG" | grep -A 100 "chat-light:" | grep "max-model-len" | head -1 | sed -n 's/.*max-model-len \([0-9]*\).*/\1/p')
 
 echo "  实际 GPU 内存利用率: ${ACTUAL_GPU_MEM}"
 echo "  实际最大上下文长度: ${ACTUAL_MAX_LEN}"
 
-if (( $(echo "$ACTUAL_GPU_MEM > 0.7" | bc -l) )); then
-    echo -e "${RED}✗ Docker Compose 实际会使用 ${ACTUAL_GPU_MEM} GPU 利用率，过高！${NC}"
-    echo -e "${YELLOW}提示: 检查 docker-compose.yml 中是否有硬编码的默认值${NC}"
-    exit 1
+# 只有在成功提取到值时才进行验证
+if [ ! -z "$ACTUAL_GPU_MEM" ]; then
+    # 将小数转换为整数比较 (0.5 -> 50, 0.7 -> 70)
+    GPU_MEM_INT=$(echo "$ACTUAL_GPU_MEM * 100" | bc | cut -d'.' -f1)
+    if [ "$GPU_MEM_INT" -gt 70 ]; then
+        echo -e "${RED}✗ Docker Compose 实际会使用 ${ACTUAL_GPU_MEM} GPU 利用率，过高！${NC}"
+        echo -e "${YELLOW}提示: 检查 docker-compose.yml 中是否有硬编码的默认值${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}⚠ 无法从 docker-compose config 提取 GPU 内存利用率，跳过验证${NC}"
 fi
 
-if [ "$ACTUAL_MAX_LEN" -gt 32768 ]; then
+if [ ! -z "$ACTUAL_MAX_LEN" ] && [ "$ACTUAL_MAX_LEN" -gt 32768 ]; then
     echo -e "${RED}✗ Docker Compose 实际会使用 ${ACTUAL_MAX_LEN} 上下文长度，过大！${NC}"
     exit 1
+elif [ -z "$ACTUAL_MAX_LEN" ]; then
+    echo -e "${YELLOW}⚠ 无法从 docker-compose config 提取上下文长度，跳过验证${NC}"
 fi
 
-echo -e "${GREEN}✓ docker-compose.yml 配置正确${NC}"
+echo -e "${GREEN}✓ docker-compose.yml 配置检查完成${NC}"
 echo ""
 
 # 3. 停止所有现有容器
@@ -120,17 +131,21 @@ if docker ps | grep -q familyai-chat-light; then
     # 7. 验证容器实际使用的配置参数
     echo -e "${YELLOW}步骤 7: 验证容器实际使用的配置...${NC}"
 
-    ACTUAL_USED_GPU_MEM=$(docker logs familyai-chat-light 2>&1 | grep "gpu_memory_utilization" | tail -1 | grep -oP '\d+\.\d+' | head -1)
-    ACTUAL_USED_MAX_LEN=$(docker logs familyai-chat-light 2>&1 | grep "max_model_len" | tail -1 | grep -oP '\d+')
+    # 使用兼容的 sed 替代 grep -oP
+    ACTUAL_USED_GPU_MEM=$(docker logs familyai-chat-light 2>&1 | grep "gpu_memory_utilization" | tail -1 | sed -n 's/.*gpu_memory_utilization (\([0-9.]*\)).*/\1/p' | head -1)
+    ACTUAL_USED_MAX_LEN=$(docker logs familyai-chat-light 2>&1 | grep "max_model_len" | tail -1 | sed -n 's/.*max_model_len \([0-9]*\).*/\1/p')
 
     echo "  容器实际使用的 GPU 内存利用率: ${ACTUAL_USED_GPU_MEM}"
     echo "  容器实际使用的上下文长度: ${ACTUAL_USED_MAX_LEN}"
 
     # 验证实际使用的值
     VALIDATION_FAILED=0
-    if [ ! -z "$ACTUAL_USED_GPU_MEM" ] && (( $(echo "$ACTUAL_USED_GPU_MEM > 0.7" | bc -l) )); then
-        echo -e "${RED}✗ 容器实际使用了 ${ACTUAL_USED_GPU_MEM} GPU 利用率（预期 ≤ 0.5）${NC}"
-        VALIDATION_FAILED=1
+    if [ ! -z "$ACTUAL_USED_GPU_MEM" ]; then
+        GPU_MEM_INT=$(echo "$ACTUAL_USED_GPU_MEM * 100" | bc 2>/dev/null | cut -d'.' -f1)
+        if [ ! -z "$GPU_MEM_INT" ] && [ "$GPU_MEM_INT" -gt 70 ]; then
+            echo -e "${RED}✗ 容器实际使用了 ${ACTUAL_USED_GPU_MEM} GPU 利用率（预期 ≤ 0.5）${NC}"
+            VALIDATION_FAILED=1
+        fi
     fi
 
     if [ ! -z "$ACTUAL_USED_MAX_LEN" ] && [ "$ACTUAL_USED_MAX_LEN" -gt 32768 ]; then
