@@ -2,8 +2,6 @@
 # FamilyAI 模型量化检查脚本
 # 检查已下载的模型是否为量化版本
 
-set -e
-
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,9 +15,13 @@ echo "FamilyAI 模型量化检查脚本"
 echo "==========================================${NC}"
 echo ""
 
-# 加载环境变量
+# 加载环境变量（使用 set +e 避免 .env 中的错误导致脚本退出）
 if [ -f .env ]; then
-    source .env
+    set +e
+    source .env 2>/dev/null || {
+        echo -e "${YELLOW}警告: .env 文件加载失败，使用默认配置${NC}"
+    }
+    set -e
 else
     echo -e "${YELLOW}警告: .env 文件不存在，使用默认路径${NC}"
 fi
@@ -37,17 +39,6 @@ if [ ! -d "$HF_HUB_CACHE" ]; then
     exit 1
 fi
 
-# 预期的量化模型配置
-declare -A EXPECTED_MODELS
-EXPECTED_MODELS=(
-    ["CHAT_LIGHT_MODEL"]="Eslzzyl/Qwen3-4B-Instruct-2507-AWQ|AWQ INT4|2.5GB|models--Eslzzyl--Qwen3-4B-Instruct-2507-AWQ"
-    ["CHAT_FAST_MODEL"]="JunHowie/Qwen3-8B-GPTQ-Int4|GPTQ INT4|2.5GB|models--JunHowie--Qwen3-8B-GPTQ-Int4"
-    ["CHAT_ADVANCED_MODEL"]="Qwen/Qwen3-32B-AWQ|AWQ INT4|9GB|models--Qwen--Qwen3-32B-AWQ"
-    ["CODE_TRADITIONAL_MODEL"]="Qwen/Qwen2.5-Coder-32B-Instruct-AWQ|AWQ INT4|9GB|models--Qwen--Qwen2.5-Coder-32B-Instruct-AWQ"
-    ["CODE_AGENTIC_MODEL"]="Qwen/Qwen3-30B-A3B-GPTQ-Int4|GPTQ INT4|8GB|models--Qwen--Qwen3-30B-A3B-GPTQ-Int4"
-    ["VISION_MODEL"]="Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4|GPTQ INT4|2.5GB|models--Qwen--Qwen2-VL-7B-Instruct-GPTQ-Int4"
-)
-
 # 检查函数
 check_model_quantization() {
     local model_path=$1
@@ -61,7 +52,7 @@ check_model_quantization() {
     # 查找最新的 snapshot
     local snapshot_dir=$(find "$model_path/snapshots" -maxdepth 1 -type d 2>/dev/null | tail -1)
 
-    if [ -z "$snapshot_dir" ]; then
+    if [ -z "$snapshot_dir" ] || [ "$snapshot_dir" = "$model_path/snapshots" ]; then
         echo -e "${RED}✗ 无有效快照${NC}"
         return 1
     fi
@@ -69,14 +60,14 @@ check_model_quantization() {
     # 检查 config.json 中的量化信息
     local config_file="$snapshot_dir/config.json"
     if [ -f "$config_file" ]; then
-        # 检查是否包含量化相关字段
-        local quant_method=$(grep -oP '"quantization_config".*?"quant_method":\s*"\K[^"]+' "$config_file" 2>/dev/null || echo "")
+        # 使用兼容的方式检查量化信息（不使用 -P）
+        local quant_method=$(grep -o '"quant_method"[[:space:]]*:[[:space:]]*"[^"]*"' "$config_file" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/')
 
         if [ -n "$quant_method" ]; then
             echo -e "${GREEN}✓ 量化模型${NC} (方法: ${CYAN}${quant_method}${NC})"
 
             # 尝试获取 bits 信息
-            local bits=$(grep -oP '"bits":\s*\K[0-9]+' "$config_file" 2>/dev/null || echo "")
+            local bits=$(grep -o '"bits"[[:space:]]*:[[:space:]]*[0-9]*' "$config_file" 2>/dev/null | sed 's/[^0-9]//g')
             if [ -n "$bits" ]; then
                 echo -e "  量化位数: ${CYAN}${bits}-bit${NC}"
             fi
@@ -85,8 +76,8 @@ check_model_quantization() {
     fi
 
     # 检查文件名是否包含量化标识
-    local has_awq=$(find "$snapshot_dir" -name "*awq*" 2>/dev/null | wc -l)
-    local has_gptq=$(find "$snapshot_dir" -name "*gptq*" 2>/dev/null | wc -l)
+    local has_awq=$(find "$snapshot_dir" -iname "*awq*" 2>/dev/null | wc -l)
+    local has_gptq=$(find "$snapshot_dir" -iname "*gptq*" 2>/dev/null | wc -l)
 
     if [ "$has_awq" -gt 0 ]; then
         echo -e "${GREEN}✓ 量化模型${NC} (方法: ${CYAN}AWQ${NC}, 检测依据: 文件名)"
@@ -97,17 +88,16 @@ check_model_quantization() {
     fi
 
     # 检查模型仓库名是否包含量化标识
-    if [[ "$model_name" =~ (AWQ|GPTQ|Int4|int4) ]]; then
+    if echo "$model_name" | grep -qiE "(AWQ|GPTQ|Int4|int4)"; then
         echo -e "${GREEN}✓ 量化模型${NC} (方法: ${CYAN}INT4${NC}, 检测依据: 仓库名)"
         return 0
     fi
 
-    # 检查模型文件大小（量化模型通常更小）
+    # 检查模型文件大小
     local model_size_mb=$(du -sm "$model_path" 2>/dev/null | cut -f1)
 
-    # 如果模型大小异常小，可能是量化的
     if [ -n "$model_size_mb" ]; then
-        echo -e "${YELLOW}? 可能是量化模型${NC} (大小: ${model_size_mb}MB)"
+        echo -e "${YELLOW}? 不确定${NC} (大小: ${model_size_mb}MB)"
         echo -e "  ${YELLOW}警告: 无法从配置确认量化方法${NC}"
         return 2
     fi
@@ -125,63 +115,203 @@ UNCERTAIN_COUNT=0
 echo -e "${YELLOW}检查 .env 配置的模型：${NC}"
 echo ""
 
-# 检查每个配置的模型
-for env_var in "${!EXPECTED_MODELS[@]}"; do
-    IFS='|' read -r expected_name quant_method expected_size model_dir <<< "${EXPECTED_MODELS[$env_var]}"
+# 定义要检查的模型列表
+check_models() {
+    # chat-light
+    if [ -n "$CHAT_LIGHT_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 CHAT_LIGHT_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${CHAT_LIGHT_MODEL}${NC}"
+        echo -e "  预期模型: Eslzzyl/Qwen3-4B-Instruct-2507-AWQ"
+        echo -e "  预期量化: AWQ INT4"
 
-    # 从 .env 读取实际配置的模型
-    actual_model=$(eval echo \$${env_var})
+        local_model_dir=$(echo "$CHAT_LIGHT_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
 
-    ((TOTAL_COUNT++))
-
-    echo -e "${BLUE}[$TOTAL_COUNT] 检查 ${env_var}${NC}"
-    echo -e "  配置模型: ${CYAN}${actual_model:-未配置}${NC}"
-    echo -e "  预期模型: ${expected_name}"
-    echo -e "  预期量化: ${quant_method}"
-
-    if [ -z "$actual_model" ]; then
-        echo -e "  状态: ${RED}✗ 未配置${NC}"
-        ((NOT_FOUND_COUNT++))
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$CHAT_LIGHT_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
         echo ""
-        continue
     fi
 
-    # 转换模型名为目录名
-    local_model_dir=$(echo "$actual_model" | sed 's|/|--|g' | sed 's/^/models--/')
-    model_path="$HF_HUB_CACHE/$local_model_dir"
+    # chat-fast
+    if [ -n "$CHAT_FAST_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 CHAT_FAST_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${CHAT_FAST_MODEL}${NC}"
+        echo -e "  预期模型: JunHowie/Qwen3-8B-GPTQ-Int4"
+        echo -e "  预期量化: GPTQ INT4"
 
-    echo -e "  本地路径: $model_path"
+        local_model_dir=$(echo "$CHAT_FAST_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
 
-    # 检查模型是否存在
-    if [ ! -d "$model_path" ]; then
-        echo -e "  状态: ${RED}✗ 未下载${NC}"
-        ((NOT_FOUND_COUNT++))
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$CHAT_FAST_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
         echo ""
-        continue
     fi
 
-    # 获取模型大小
-    model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
-    echo -e "  实际大小: ${model_size}"
+    # chat-advanced
+    if [ -n "$CHAT_ADVANCED_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 CHAT_ADVANCED_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${CHAT_ADVANCED_MODEL}${NC}"
+        echo -e "  预期模型: Qwen/Qwen3-32B-AWQ"
+        echo -e "  预期量化: AWQ INT4"
 
-    # 检查量化状态
-    echo -n "  量化状态: "
-    check_result=$(check_model_quantization "$model_path" "$actual_model")
-    check_status=$?
+        local_model_dir=$(echo "$CHAT_ADVANCED_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
 
-    if [ $check_status -eq 0 ]; then
-        ((QUANTIZED_COUNT++))
-    elif [ $check_status -eq 2 ]; then
-        ((UNCERTAIN_COUNT++))
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$CHAT_ADVANCED_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
+        echo ""
     fi
 
-    # 验证是否与预期模型匹配
-    if [ "$actual_model" != "$expected_name" ]; then
-        echo -e "  ${YELLOW}⚠️  警告: 配置的模型与预期不符${NC}"
+    # code-traditional
+    if [ -n "$CODE_TRADITIONAL_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 CODE_TRADITIONAL_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${CODE_TRADITIONAL_MODEL}${NC}"
+        echo -e "  预期模型: Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
+        echo -e "  预期量化: AWQ INT4"
+
+        local_model_dir=$(echo "$CODE_TRADITIONAL_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
+
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$CODE_TRADITIONAL_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
+        echo ""
     fi
 
-    echo ""
-done
+    # code-agentic
+    if [ -n "$CODE_AGENTIC_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 CODE_AGENTIC_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${CODE_AGENTIC_MODEL}${NC}"
+        echo -e "  预期模型: Qwen/Qwen3-30B-A3B-GPTQ-Int4"
+        echo -e "  预期量化: GPTQ INT4"
+
+        local_model_dir=$(echo "$CODE_AGENTIC_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
+
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$CODE_AGENTIC_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
+        echo ""
+    fi
+
+    # vision
+    if [ -n "$VISION_MODEL" ]; then
+        ((TOTAL_COUNT++))
+        echo -e "${BLUE}[$TOTAL_COUNT] 检查 VISION_MODEL${NC}"
+        echo -e "  配置模型: ${CYAN}${VISION_MODEL}${NC}"
+        echo -e "  预期模型: Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4"
+        echo -e "  预期量化: GPTQ INT4"
+
+        local_model_dir=$(echo "$VISION_MODEL" | sed 's|/|--|g' | sed 's/^/models--/')
+        model_path="$HF_HUB_CACHE/$local_model_dir"
+        echo -e "  本地路径: $model_path"
+
+        if [ -d "$model_path" ]; then
+            model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+            echo -e "  实际大小: ${model_size}"
+            echo -n "  量化状态: "
+            check_model_quantization "$model_path" "$VISION_MODEL"
+            check_status=$?
+            if [ $check_status -eq 0 ]; then
+                ((QUANTIZED_COUNT++))
+            elif [ $check_status -eq 2 ]; then
+                ((UNCERTAIN_COUNT++))
+            else
+                ((NOT_FOUND_COUNT++))
+            fi
+        else
+            echo -e "  状态: ${RED}✗ 未下载${NC}"
+            ((NOT_FOUND_COUNT++))
+        fi
+        echo ""
+    fi
+}
+
+# 执行检查
+check_models
 
 # 扫描所有已下载的模型
 echo -e "${YELLOW}扫描所有已下载的模型：${NC}"
@@ -203,7 +333,7 @@ else
         echo -e "  路径: $model_path"
         echo -e "  大小: $model_size"
         echo -n "  量化: "
-        check_model_quantization "$model_path" "$model_name" > /dev/null
+        check_model_quantization "$model_path" "$model_name"
         echo ""
     done
 fi
@@ -237,7 +367,7 @@ if [ $UNCERTAIN_COUNT -gt 0 ]; then
     echo ""
 fi
 
-if [ $QUANTIZED_COUNT -eq $TOTAL_COUNT ] && [ $NOT_FOUND_COUNT -eq 0 ]; then
+if [ $QUANTIZED_COUNT -eq $TOTAL_COUNT ] && [ $NOT_FOUND_COUNT -eq 0 ] && [ $TOTAL_COUNT -gt 0 ]; then
     echo -e "${GREEN}✓✓✓ 所有配置的模型均为量化版本！${NC}"
     echo ""
     echo "下一步："
