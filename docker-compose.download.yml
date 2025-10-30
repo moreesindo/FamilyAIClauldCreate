@@ -143,3 +143,44 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # ===========================================================================
+  # Batch Quantized Model Downloader (INT4 AWQ/GPTQ)
+  # ===========================================================================
+  batch-quantized-downloader:
+    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    container_name: familyai-batch-quantized-downloader
+    environment:
+      # Proxy settings
+      - HTTP_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - HTTPS_PROXY=${PROXY_URL:-http://127.0.0.1:2526}
+      - http_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - https_proxy=${PROXY_URL:-http://127.0.0.1:2526}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+
+      # HuggingFace configuration
+      - HF_HOME=/data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+
+      # Quantized models to download (from .env)
+      - CODE_TRADITIONAL_MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct-AWQ}
+      - CODE_AGENTIC_MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-GPTQ-Int4}
+      - CHAT_ADVANCED_MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-AWQ}
+      - CHAT_FAST_MODEL=${CHAT_FAST_MODEL:-JunHowie/Qwen3-8B-GPTQ-Int4}
+      - CHAT_LIGHT_MODEL=${CHAT_LIGHT_MODEL:-Eslzzyl/Qwen3-4B-Instruct-2507-AWQ}
+      - VISION_MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4}
+
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ./scripts/batch-download-quantized.sh:/app/batch-download-quantized.sh:ro
+
+    network_mode: host
+
+    entrypoint: ["/bin/bash"]
+    command: ["/app/batch-download-quantized.sh"]
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

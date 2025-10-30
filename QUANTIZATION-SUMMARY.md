@@ -132,13 +132,32 @@ INT4 AWQ/GPTQ 量化的精度损失极小：
 
 ## 下载和部署
 
-### 1. 批量下载所有量化模型
+### 1. 批量下载所有量化模型（容器化方式）
+
+使用 Docker 容器下载模型，自动配置代理和缓存目录：
 
 ```bash
 cd /path/to/FamilyAI
-chmod +x download-all-quantized-models.sh
-./download-all-quantized-models.sh
+
+# 批量下载所有量化模型（默认方式，推荐）
+./download-quantized-models.sh
+
+# 或显式使用批量模式
+./download-quantized-models.sh --batch
+
+# 下载单个模型
+./download-quantized-models.sh --model chat-light
+
+# 下载多个指定模型
+./download-quantized-models.sh --model chat-light --model chat-fast
 ```
+
+**容器化下载的优势：**
+- 自动配置代理（从 `.env` 文件读取）
+- 自动挂载 HuggingFace 缓存目录
+- 不需要在宿主机安装 Python 依赖
+- 与 vLLM 服务使用相同的容器镜像
+- 支持断点续传
 
 预计下载时间：
 - 代理稳定: ~30-60 分钟
@@ -177,10 +196,21 @@ docker logs familyai-chat-light 2>&1 | grep "Model loading took"
 ### 问题 1: 模型下载失败
 
 ```bash
-# 手动下载单个模型
-export HTTP_PROXY=http://192.168.3.84:2526
-huggingface-cli download Eslzzyl/Qwen3-4B-Instruct-2507-AWQ \
-  --cache-dir /home/sindoyang/.cache/huggingface
+# 检查代理配置
+grep PROXY_URL .env
+
+# 确认缓存目录权限
+ls -ld $(grep HF_HOME .env | cut -d'=' -f2)
+
+# 使用容器单独下载失败的模型
+./download-quantized-models.sh --model chat-light
+
+# 查看下载容器日志
+docker logs familyai-batch-quantized-downloader
+
+# 手动使用容器下载（如果脚本失败）
+MODEL_NAME=Eslzzyl/Qwen3-4B-Instruct-2507-AWQ \
+  docker compose -f docker-compose.download.yml run --rm model-downloader
 ```
 
 ### 问题 2: 容器启动失败

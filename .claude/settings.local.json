@@ -6,7 +6,8 @@
       "Bash(chmod:*)",
       "Bash(find:*)",
       "Bash(test:*)",
-      "Bash(./scripts/02-pull-models.sh:*)"
+      "Bash(./scripts/02-pull-models.sh:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
