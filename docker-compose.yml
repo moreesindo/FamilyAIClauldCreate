@@ -90,7 +90,7 @@ services:
     command: >
       python3 -m vllm.entrypoints.openai.api_server
       --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-GPTQ-Int4}
-      --quantization gptq
+      --quantization gptq_marlin
       --dtype half
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
       --max-model-len ${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
