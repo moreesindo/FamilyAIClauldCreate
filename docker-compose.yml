@@ -525,8 +525,8 @@ services:
       - ./web-ui/config.json:/app/config.json:ro
     ports:
       - "${WEBUI_PORT:-3000}:8080"
-    depends_on:
-      - gateway
+    # No depends_on - can be started independently
+    # Start backend services separately before using web-ui
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
