@@ -485,14 +485,9 @@ services:
       - ./gateway/config.yaml:/app/config.yaml:ro
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
-    depends_on:
-      - code-traditional
-      - chat-advanced
-      - chat-fast
-      - chat-light
-      - vision
-      - whisper
-      - piper
+    # No depends_on - gateway can start independently
+    # It will route to available backend services dynamically
+    # Start required model services before using gateway
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 15s
