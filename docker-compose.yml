@@ -90,13 +90,14 @@ services:
     command: >
       python3 -m vllm.entrypoints.openai.api_server
       --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-GPTQ-Int4}
-      --quantization gptq_marlin
+      --quantization gptq
       --dtype half
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
       --max-model-len ${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
       --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
       --host 0.0.0.0
       --port 8000
+      --disable-custom-all-reduce
     shm_size: '16gb'
     ipc: host
     ulimits:
