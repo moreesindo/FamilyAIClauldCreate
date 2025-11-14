@@ -1,7 +1,7 @@
 version: '3.8'
 
-# FamilyAI Docker Compose Configuration
-# Deploys all AI services on NVIDIA Jetson Thor
+# FamilyAI Docker Compose Configuration (llama.cpp Edition)
+# Deploys all AI services on NVIDIA Jetson Thor using llama.cpp
 
 services:
   # ===========================================================================
@@ -9,42 +9,27 @@ services:
   # ===========================================================================
 
   code-traditional:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-code-traditional
     runtime: nvidia
     environment:
-      - MODEL=${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct-AWQ}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
-      - MAX_MODEL_LEN=${CODE_TRADITIONAL_MAX_MODEL_LEN:-32768}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - ENABLE_CUDA_GRAPH=${VLLM_ENABLE_CUDA_GRAPH:-true}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${CODE_TRADITIONAL_GGUF:-code-traditional-q4-k-m.gguf}
+      - CONTEXT_SIZE=${CODE_TRADITIONAL_MAX_MODEL_LEN:-16384}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/code-traditional.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${CODE_TRADITIONAL_PORT:-8001}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${CODE_TRADITIONAL_MODEL:-Qwen/Qwen2.5-Coder-32B-Instruct-AWQ}
-      --quantization awq
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${CODE_TRADITIONAL_MAX_MODEL_LEN:-16384}
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${CODE_TRADITIONAL_GGUF:-code-traditional-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${CODE_TRADITIONAL_MAX_MODEL_LEN:-16384}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -67,41 +52,27 @@ services:
         max-file: "3"
 
   code-agentic:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-code-agentic
     runtime: nvidia
     environment:
-      - MODEL=${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-GPTQ-Int4}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
-      - MAX_MODEL_LEN=${CODE_AGENTIC_MAX_MODEL_LEN:-131072}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${CODE_AGENTIC_GGUF:-code-agentic-q4-k-m.gguf}
+      - CONTEXT_SIZE=${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/code-agentic.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${CODE_AGENTIC_PORT:-8002}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${CODE_AGENTIC_MODEL:-Qwen/Qwen3-30B-A3B-GPTQ-Int4}
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${CODE_AGENTIC_GGUF:-code-agentic-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-      --disable-custom-all-reduce
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -130,41 +101,27 @@ services:
   # ===========================================================================
 
   chat-advanced:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-chat-advanced
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-AWQ}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      - MAX_MODEL_LEN=${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${CHAT_ADVANCED_GGUF:-chat-advanced-q4-k-m.gguf}
+      - CONTEXT_SIZE=${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/chat-advanced.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${CHAT_ADVANCED_PORT:-8003}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_ADVANCED_MODEL:-Qwen/Qwen3-32B-AWQ}
-      --quantization awq
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${CHAT_ADVANCED_GGUF:-chat-advanced-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -187,41 +144,27 @@ services:
         max-file: "3"
 
   chat-fast:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-chat-fast
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_FAST_MODEL:-JunHowie/Qwen3-8B-GPTQ-Int4}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      - MAX_MODEL_LEN=${CHAT_FAST_MAX_MODEL_LEN:-16384}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${CHAT_FAST_GGUF:-chat-fast-q4-k-m.gguf}
+      - CONTEXT_SIZE=${CHAT_FAST_MAX_MODEL_LEN:-16384}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/chat-fast.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${CHAT_FAST_PORT:-8004}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_FAST_MODEL:-JunHowie/Qwen3-8B-GPTQ-Int4}
-      --quantization gptq
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${CHAT_FAST_MAX_MODEL_LEN:-16384}
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${CHAT_FAST_GGUF:-chat-fast-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${CHAT_FAST_MAX_MODEL_LEN:-16384}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -244,42 +187,27 @@ services:
         max-file: "3"
 
   chat-light:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-chat-light
     runtime: nvidia
     environment:
-      - MODEL=${CHAT_LIGHT_MODEL:-Eslzzyl/Qwen3-4B-Instruct-2507-AWQ}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
-      - MAX_MODEL_LEN=${CHAT_LIGHT_MAX_MODEL_LEN:-32768}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${CHAT_LIGHT_GGUF:-chat-light-q4-k-m.gguf}
+      - CONTEXT_SIZE=${CHAT_LIGHT_MAX_MODEL_LEN:-8192}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/chat-light.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${CHAT_LIGHT_PORT:-8005}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${CHAT_LIGHT_MODEL:-Eslzzyl/Qwen3-4B-Instruct-2507-AWQ}
-      --quantization awq
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${CHAT_LIGHT_MAX_MODEL_LEN:-8192}
-      --max-num-seqs 8
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${CHAT_LIGHT_GGUF:-chat-light-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${CHAT_LIGHT_MAX_MODEL_LEN:-8192}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-12}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -302,45 +230,31 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Vision Service
+  # Vision Service (llava)
   # ===========================================================================
 
   vision:
-    image: ${VLLM_IMAGE:-nvcr.io/nvidia/tritonserver:25.08-vllm-python-py3}
+    image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-vision
     runtime: nvidia
     environment:
-      - MODEL=${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4}
-      - GPU_MEMORY_UTILIZATION=${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      - MAX_MODEL_LEN=${VISION_MAX_MODEL_LEN:-16384}
-      - TENSOR_PARALLEL_SIZE=${VLLM_TENSOR_PARALLEL_SIZE:-1}
-      - HF_HOME=/data/huggingface
-      - HTTP_PROXY=${PROXY_URL:-}
-      - HTTPS_PROXY=${PROXY_URL:-}
-      - http_proxy=${PROXY_URL:-}
-      - https_proxy=${PROXY_URL:-}
-      - VLLM_USE_V1=0
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - GGUF_MODEL=${VISION_GGUF:-vision-q4-k-m.gguf}
+      - CONTEXT_SIZE=${VISION_MAX_MODEL_LEN:-16384}
+      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
+      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-4}
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
-      - ./vllm/vision.env:/config/env
+      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
     ports:
       - "${VISION_PORT:-8006}:8000"
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      --model ${VISION_MODEL:-Qwen/Qwen2-VL-7B-Instruct-GPTQ-Int4}
-      --quantization gptq
-      --dtype half
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.3}
-      --max-model-len ${VISION_MAX_MODEL_LEN:-16384}
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE:-1}
+      --model /models/${VISION_GGUF:-vision-q4-k-m.gguf}
       --host 0.0.0.0
       --port 8000
-    shm_size: '16gb'
-    ipc: host
-    ulimits:
-      memlock: -1
-      stack: 67108864
+      --ctx-size ${VISION_MAX_MODEL_LEN:-16384}
+      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
+      --n-parallel ${LLAMACPP_N_PARALLEL:-4}
+      --metrics
+      --log-format text
     deploy:
       resources:
         reservations:
@@ -363,7 +277,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Speech Services
+  # Speech Services (Unchanged)
   # ===========================================================================
 
   whisper:
@@ -447,7 +361,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Intelligent Routing Gateway
+  # Intelligent Routing Gateway (Unchanged)
   # ===========================================================================
 
   gateway:
@@ -485,9 +399,6 @@ services:
       - ./gateway/config.yaml:/app/config.yaml:ro
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
-    # No depends_on - gateway can start independently
-    # It will route to available backend services dynamically
-    # Start required model services before using gateway
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 15s
@@ -504,7 +415,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Web UI (Open WebUI)
+  # Web UI (Open WebUI) (Unchanged)
   # ===========================================================================
 
   web-ui:
@@ -520,8 +431,6 @@ services:
       - ./web-ui/config.json:/app/config.json:ro
     ports:
       - "${WEBUI_PORT:-3000}:8080"
-    # No depends_on - can be started independently
-    # Start backend services separately before using web-ui
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -538,7 +447,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Monitoring: Prometheus
+  # Monitoring: Prometheus (Unchanged)
   # ===========================================================================
 
   prometheus:
@@ -568,7 +477,7 @@ services:
       - full
 
   # ===========================================================================
-  # Monitoring: Grafana
+  # Monitoring: Grafana (Unchanged)
   # ===========================================================================
 
   grafana:
