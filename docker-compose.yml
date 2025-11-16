@@ -1,71 +1,28 @@
 version: '3.8'
 
-# FamilyAI Docker Compose Configuration (llama.cpp Edition)
-# Deploys all AI services on NVIDIA Jetson Thor using llama.cpp
+# FamilyAI Docker Compose Configuration (Simplified llama.cpp Edition)
+# Core AI services on NVIDIA Jetson Thor: Code + Vision + Speech
 
 services:
   # ===========================================================================
-  # Code Assistant Services (Hot-swappable)
+  # Code Assistant Service
   # ===========================================================================
-
-  code-traditional:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: familyai-code-traditional
-    runtime: nvidia
-    environment:
-      - GGUF_MODEL=${CODE_TRADITIONAL_GGUF:-code-traditional-q4-k-m.gguf}
-      - CONTEXT_SIZE=${CODE_TRADITIONAL_MAX_MODEL_LEN:-16384}
-      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
-      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
-    volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
-    ports:
-      - "${CODE_TRADITIONAL_PORT:-8001}:8000"
-    command: >
-      --model /models/${CODE_TRADITIONAL_GGUF:-code-traditional-q4-k-m.gguf}
-      --host 0.0.0.0
-      --port 8000
-      --ctx-size ${CODE_TRADITIONAL_MAX_MODEL_LEN:-16384}
-      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
-      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
-      --metrics
-      --log-format text
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - familyai
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   code-agentic:
     image: ghcr.io/ggerganov/llama.cpp:server
     container_name: familyai-code-agentic
     runtime: nvidia
     environment:
-      - GGUF_MODEL=${CODE_AGENTIC_GGUF:-code-agentic-q4-k-m.gguf}
+      - GGUF_MODEL=${CODE_AGENTIC_GGUF:-Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf}
       - CONTEXT_SIZE=${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
       - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
       - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
     volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
+      - ${GGUF_OUTPUT_DIR:-/home/sindoyang/.cache/familyai/gguf}:/models:ro
     ports:
-      - "${CODE_AGENTIC_PORT:-8002}:8000"
+      - "${CODE_AGENTIC_PORT:-8001}:8000"
     command: >
-      --model /models/${CODE_AGENTIC_GGUF:-code-agentic-q4-k-m.gguf}
+      --model /models/${CODE_AGENTIC_GGUF:-Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf}
       --host 0.0.0.0
       --port 8000
       --ctx-size ${CODE_AGENTIC_MAX_MODEL_LEN:-32768}
@@ -93,161 +50,29 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    profiles:
-      - full  # Only start with --profile full
 
   # ===========================================================================
-  # Chat Services (Always Running)
-  # ===========================================================================
-
-  chat-advanced:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: familyai-chat-advanced
-    runtime: nvidia
-    environment:
-      - GGUF_MODEL=${CHAT_ADVANCED_GGUF:-chat-advanced-q4-k-m.gguf}
-      - CONTEXT_SIZE=${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
-      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
-      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
-    volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
-    ports:
-      - "${CHAT_ADVANCED_PORT:-8003}:8000"
-    command: >
-      --model /models/${CHAT_ADVANCED_GGUF:-chat-advanced-q4-k-m.gguf}
-      --host 0.0.0.0
-      --port 8000
-      --ctx-size ${CHAT_ADVANCED_MAX_MODEL_LEN:-16384}
-      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
-      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
-      --metrics
-      --log-format text
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - familyai
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  chat-fast:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: familyai-chat-fast
-    runtime: nvidia
-    environment:
-      - GGUF_MODEL=${CHAT_FAST_GGUF:-chat-fast-q4-k-m.gguf}
-      - CONTEXT_SIZE=${CHAT_FAST_MAX_MODEL_LEN:-16384}
-      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
-      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
-    volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
-    ports:
-      - "${CHAT_FAST_PORT:-8004}:8000"
-    command: >
-      --model /models/${CHAT_FAST_GGUF:-chat-fast-q4-k-m.gguf}
-      --host 0.0.0.0
-      --port 8000
-      --ctx-size ${CHAT_FAST_MAX_MODEL_LEN:-16384}
-      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
-      --n-parallel ${LLAMACPP_N_PARALLEL:-8}
-      --metrics
-      --log-format text
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - familyai
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  chat-light:
-    image: ghcr.io/ggerganov/llama.cpp:server
-    container_name: familyai-chat-light
-    runtime: nvidia
-    environment:
-      - GGUF_MODEL=${CHAT_LIGHT_GGUF:-chat-light-q4-k-m.gguf}
-      - CONTEXT_SIZE=${CHAT_LIGHT_MAX_MODEL_LEN:-8192}
-      - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
-      - N_PARALLEL=${LLAMACPP_N_PARALLEL:-8}
-    volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
-    ports:
-      - "${CHAT_LIGHT_PORT:-8005}:8000"
-    command: >
-      --model /models/${CHAT_LIGHT_GGUF:-chat-light-q4-k-m.gguf}
-      --host 0.0.0.0
-      --port 8000
-      --ctx-size ${CHAT_LIGHT_MAX_MODEL_LEN:-8192}
-      --n-gpu-layers ${LLAMACPP_GPU_LAYERS:-999}
-      --n-parallel ${LLAMACPP_N_PARALLEL:-12}
-      --metrics
-      --log-format text
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - familyai
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Vision Service (llava)
+  # Vision Service (LLaVA 1.5)
   # ===========================================================================
 
   vision:
-    image: ghcr.io/ggerganov/llama.cpp:server
+    image: dustynv/llama.cpp:latest
     container_name: familyai-vision
     runtime: nvidia
     environment:
-      - GGUF_MODEL=${VISION_GGUF:-vision-q4-k-m.gguf}
+      - GGUF_MODEL=${VISION_GGUF:-ggml-model-q4_k.gguf}
+      - MMPROJ=${VISION_MMPROJ:-mmproj-model-f16.gguf}
       - CONTEXT_SIZE=${VISION_MAX_MODEL_LEN:-16384}
       - GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-999}
       - N_PARALLEL=${LLAMACPP_N_PARALLEL:-4}
     volumes:
-      - ${GGUF_OUTPUT_DIR:-~/.cache/familyai/gguf}:/models:ro
+      - ${GGUF_OUTPUT_DIR:-/home/sindoyang/.cache/familyai/gguf}:/models:ro
     ports:
-      - "${VISION_PORT:-8006}:8000"
+      - "${VISION_PORT:-8002}:8000"
     command: >
-      --model /models/${VISION_GGUF:-vision-q4-k-m.gguf}
+      llama-mtmd-cli
+      --model /models/${VISION_GGUF:-ggml-model-q4_k.gguf}
+      --mmproj /models/${VISION_MMPROJ:-mmproj-model-f16.gguf}
       --host 0.0.0.0
       --port 8000
       --ctx-size ${VISION_MAX_MODEL_LEN:-16384}
@@ -277,7 +102,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Speech Services (Unchanged)
+  # Speech Services
   # ===========================================================================
 
   whisper:
@@ -299,10 +124,10 @@ services:
       - LANGUAGE=${WHISPER_LANGUAGE:-auto}
       - HF_HOME=/data/huggingface
     volumes:
-      - ${HF_HOME:-~/.cache/huggingface}:/data/huggingface
+      - ${HF_HOME:-/home/sindoyang/.cache/huggingface}:/data/huggingface
       - ./whisper/config.yaml:/app/config.yaml:ro
     ports:
-      - "${WHISPER_PORT:-8007}:8000"
+      - "${WHISPER_PORT:-8003}:8000"
     deploy:
       resources:
         reservations:
@@ -344,7 +169,7 @@ services:
       - ./piper/config.yaml:/app/config.yaml:ro
       - piper-models:/models
     ports:
-      - "${PIPER_PORT:-8008}:8000"
+      - "${PIPER_PORT:-8004}:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -361,7 +186,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Intelligent Routing Gateway (Unchanged)
+  # Optional: Intelligent Routing Gateway (Simplified)
   # ===========================================================================
 
   gateway:
@@ -379,19 +204,12 @@ services:
     container_name: familyai-gateway
     environment:
       - LOG_LEVEL=${GATEWAY_LOG_LEVEL:-INFO}
-      - CODE_CONTEXT_THRESHOLD=${GATEWAY_CODE_CONTEXT_THRESHOLD:-8192}
-      - CHAT_SIMPLE_MAX_TOKENS=${GATEWAY_CHAT_SIMPLE_MAX_TOKENS:-100}
-      - CHAT_COMPLEX_MIN_TOKENS=${GATEWAY_CHAT_COMPLEX_MIN_TOKENS:-500}
       - API_AUTH_ENABLED=${API_AUTH_ENABLED:-false}
       - API_KEY=${API_KEY:-}
       - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-false}
       - RATE_LIMIT_REQUESTS_PER_MINUTE=${RATE_LIMIT_REQUESTS_PER_MINUTE:-60}
       # Backend service URLs
-      - CODE_TRADITIONAL_URL=http://code-traditional:8000
       - CODE_AGENTIC_URL=http://code-agentic:8000
-      - CHAT_ADVANCED_URL=http://chat-advanced:8000
-      - CHAT_FAST_URL=http://chat-fast:8000
-      - CHAT_LIGHT_URL=http://chat-light:8000
       - VISION_URL=http://vision:8000
       - WHISPER_URL=http://whisper:8000
       - PIPER_URL=http://piper:8000
@@ -413,9 +231,11 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    profiles:
+      - full
 
   # ===========================================================================
-  # Web UI (Open WebUI) (Unchanged)
+  # Optional: Web UI (Open WebUI)
   # ===========================================================================
 
   web-ui:
@@ -428,7 +248,6 @@ services:
       - DEFAULT_USER_ROLE=${WEBUI_DEFAULT_USER_ROLE:-user}
     volumes:
       - ${WEBUI_DATA_DIR:-./data/open-webui}:/app/backend/data
-      - ./web-ui/config.json:/app/config.json:ro
     ports:
       - "${WEBUI_PORT:-3000}:8080"
     healthcheck:
@@ -445,9 +264,11 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    profiles:
+      - full
 
   # ===========================================================================
-  # Monitoring: Prometheus (Unchanged)
+  # Optional: Monitoring (Prometheus + Grafana)
   # ===========================================================================
 
   prometheus:
@@ -475,10 +296,6 @@ services:
     profiles:
       - monitoring
       - full
-
-  # ===========================================================================
-  # Monitoring: Grafana (Unchanged)
-  # ===========================================================================
 
   grafana:
     image: grafana/grafana:latest

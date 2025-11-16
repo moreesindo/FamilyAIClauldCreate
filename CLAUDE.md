@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**FamilyAI** is a family-oriented AI service center deployed on NVIDIA Jetson Thor, providing multiple AI services including code assistance, conversational AI, vision understanding, and speech processing for family members.
+**FamilyAI** is a family-oriented AI service center deployed on NVIDIA Jetson Thor, providing **4 core AI services**: code assistance, vision understanding, speech recognition, and speech synthesis for family members.
+
+**Design Philosophy**: Simplified, stable, and production-ready. Focus on core functionality with proven technologies.
 
 ---
 
@@ -17,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - All applications must run in Docker containers
 - All applications must be compatible with NVIDIA Jetson Thor hardware (ARM64 architecture)
 - Containerization is mandatory for every service
-- Use `jetson-containers` base images when available for optimal performance
+- Use `jetson-containers` or official llama.cpp images for optimal performance
 
 ### Hardware Specifications
 
@@ -27,6 +29,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - CUDA Cores: 2560 + 96 Tensor Cores
 - Architecture: Blackwell with native FP4 support
 
+### Development Workflow Rules
+
+**IMPORTANT**: This project follows a strict development and deployment separation:
+
+1. **Local Development Machine (开发机)**:
+   - Used ONLY for code creation, modification, and version control
+   - DO NOT run inference services locally
+   - DO NOT execute model-related commands locally
+
+2. **Jetson Thor Server (服务器端)**:
+   - All code execution, testing, and debugging happens here
+   - All model inference runs here
+   - All Docker containers run here
+
+3. **Claude Code's Role**:
+   - Perform code edits and Git operations on local machine
+   - Provide execution steps for server-side deployment
+   - NEVER execute code running commands locally
+
 ---
 
 ## Architecture
@@ -34,15 +55,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Technology Stack
 
 ```yaml
-Inference Framework: vLLM (unified for all LLM services)
-Container Image: NVIDIA Triton Server 25.08 with vLLM Python
-Quantization: INT4/AWQ (memory optimization)
+Inference Framework: llama.cpp (unified for LLM and multimodal)
+Container Images:
+  - ghcr.io/ggerganov/llama.cpp:server (for LLMs)
+  - dustynv/llama.cpp:latest (for vision with llava support)
+Quantization: Q4_K_M GGUF format (optimal quality/size balance)
 Container Runtime: Docker with NVIDIA Container Toolkit
-Orchestration: K3s (lightweight Kubernetes)
-API Gateway: Intelligent routing based on task type
-Frontend: Open WebUI
-Monitoring: Prometheus + Grafana
-Model Download: Containerized with proxy support
+Orchestration: docker-compose (development) / K3s (production)
+API Standard: OpenAI-compatible API
+Frontend: Open WebUI (optional)
+Monitoring: Prometheus + Grafana (optional)
+Model Format: Pre-quantized GGUF from HuggingFace
 ```
 
 ### Service Architecture
@@ -54,283 +77,388 @@ Model Download: Containerized with proxy support
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│       Intelligent Routing Gateway           │
-│  (Task-based model selection & routing)     │
+│       Optional: Routing Gateway             │
+│    (Simplified - 4 services only)           │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│         K3s Container Orchestration         │
+│         Docker Compose / K3s                │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│              Service Containers             │
-│ ┌─────────────┐ ┌─────────────┐            │
-│ │Code Assistant│ │Chat Services│            │
-│ │(2 models)   │ │(3 models)   │            │
-│ └─────────────┘ └─────────────┘            │
-│ ┌─────────────┐ ┌─────────────┐            │
-│ │Vision AI    │ │Speech (ASR) │            │
-│ └─────────────┘ └─────────────┘            │
-│ ┌─────────────┐ ┌─────────────┐            │
-│ │Speech (TTS) │ │Web UI       │            │
-│ └─────────────┘ └─────────────┘            │
+│           4 Core Service Containers         │
+│                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ Code Assistant  │  │ Vision (LLaVA)  │  │
+│  │ Qwen3-30B-A3B   │  │ LLaVA-1.5-7B    │  │
+│  │ ~18.6GB         │  │ ~4.9GB          │  │
+│  └─────────────────┘  └─────────────────┘  │
+│                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ Whisper ASR     │  │ Piper TTS       │  │
+│  │ faster-whisper  │  │ Piper TTS       │  │
+│  │ ~2GB            │  │ ~0.5GB          │  │
+│  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│        vLLM Inference Engine Layer          │
-│    (INT4 quantization, PagedAttention)      │
+│        llama.cpp Inference Engine           │
+│    (Q4_K_M GGUF, efficient CPU/GPU usage)   │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
 │           Jetson Thor Hardware              │
 │       (128GB RAM, 2070 FP4 TFLOPS)          │
+│     Total Memory Usage: ~26GB / 128GB       │
+│     Remaining: ~102GB for concurrency       │
 └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## Model Selection
+## Core Services
 
-### Code Assistant Services (Hot-swappable)
+### Service 1: Code Assistant (Qwen3-30B-A3B MoE)
 
-**Traditional Code Tasks**:
-- Model: `Qwen/Qwen2.5-Coder-32B-Instruct`
-- Parameters: 32B (dense)
-- Memory: ~18GB (INT4)
-- Use Cases: IDE code completion, function generation, bug fixing, code refactoring
-- Performance: Aider 73.7 (GPT-4o level)
+**Model**: `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF`
+**Quantization**: Q4_K_M
+**Parameters**: 30B total, 3.3B active (MoE architecture)
+**Memory**: ~18.6GB
+**Port**: 8001
+**Context**: 32K tokens
 
-**Agentic Workflows**:
-- Model: `Qwen/Qwen3-Coder-30B-A3B-Instruct`
-- Parameters: 30B total, 3.3B active (MoE)
-- Memory: ~15GB (INT4)
-- Use Cases: Multi-file refactoring, repository-scale understanding, browser automation, long-context tasks
-- Context: 256K native, 1M extended
+**Use Cases**:
+- Code generation and completion
+- Code refactoring and optimization
+- Bug fixing and debugging
+- Multi-file code understanding
+- Repository-scale analysis
+- Long-context code tasks
 
-### Conversational AI Services (Always Running)
+**Performance** (Jetson Thor estimate):
+- Prefill: 40-60 tokens/sec
+- Generation: 70-90 tokens/sec
+- Concurrent users: 5-8
 
-**Advanced Reasoning**:
-- Model: `Qwen/Qwen3-32B-Instruct`
-- Parameters: 32B
-- Memory: ~18GB (INT4)
-- Performance: Equivalent to Qwen2.5-72B (50% parameter efficiency gain)
+**Why this model**:
+- MoE architecture: Only 3.3B params active per request (memory efficient)
+- Native 256K context, extended to 1M with YaRN
+- Excellent code understanding with agentic capabilities
+- Pre-quantized GGUF available (no conversion needed)
+- Proven stability with llama.cpp
 
-**Fast Response**:
-- Model: `Qwen/Qwen3-8B-Instruct`
-- Parameters: 8B
-- Memory: ~4GB (INT4)
-- Performance: Equivalent to Qwen2.5-14B
-- Speed: ~150-200 tokens/sec on Thor
+### Service 2: Vision Understanding (LLaVA 1.5-7B)
 
-**Lightweight Interaction**:
-- Model: `Qwen/Qwen3-4B-Instruct`
-- Parameters: 4B
-- Memory: ~2GB (INT4)
-- Performance: Equivalent to Qwen2.5-7B
-- Speed: ~300-400 tokens/sec on Thor
+**Model**: `mys/ggml_llava-v1.5-7b`
+**Quantization**: Q4_K_M (language model) + FP16 (mmproj)
+**Parameters**: 7B
+**Memory**: ~4.9GB (4.1GB model + 0.6GB mmproj + 0.2GB compute)
+**Port**: 8002
+**Context**: 16K tokens
 
-### Vision Understanding
+**Use Cases**:
+- Image understanding and description
+- Visual question answering
+- Object recognition
+- Scene understanding
+- Basic OCR
+- Photo analysis
 
-- Model: `Qwen/Qwen2-VL-7B-Instruct`
-- Parameters: 7B
-- Memory: ~4GB (INT4)
-- Use Cases: Image understanding, visual Q&A, OCR
+**Performance** (Jetson Thor estimate):
+- Image processing: 10-20 seconds
+- Text generation: 80-120 tokens/sec
+- Concurrent users: 5-8
 
-### Speech Services
+**Why this model**:
+- Official Jetson AI Lab support (proven on Thor)
+- Excellent llama.cpp integration via `llama-mtmd-cli`
+- Stable mmproj format
+- Good balance of capability and resource usage
+- Pre-quantized GGUF available
 
-**ASR (Automatic Speech Recognition)**:
-- Model: `openai/whisper-small`
-- Parameters: 244M
-- Memory: ~2GB
-- Performance: Real-time factor < 0.3
+**Note**: For OCR-heavy workloads, Qwen2-VL-7B can be substituted (requires fork setup).
 
-**TTS (Text-to-Speech)**:
-- Model: `rhasspy/piper`
-- Parameters: <100M
-- Memory: ~500MB
-- Performance: Real-time synthesis
+### Service 3: Speech Recognition (Whisper ASR)
+
+**Model**: `Systran/faster-whisper-small`
+**Format**: CTranslate2
+**Parameters**: 244M
+**Memory**: ~2GB
+**Port**: 8003
+
+**Use Cases**:
+- Audio transcription to text
+- Video audio extraction and transcription
+- Real-time speech recognition
+- Multi-language support (auto-detect)
+
+**Performance** (Jetson Thor estimate):
+- Real-time factor: <0.3 (faster than real-time)
+- Concurrent users: 10+
+
+### Service 4: Speech Synthesis (Piper TTS)
+
+**Model**: `en_US-lessac-medium`
+**Format**: Piper native
+**Parameters**: <100M
+**Memory**: ~0.5GB
+**Port**: 8004
+
+**Use Cases**:
+- Text-to-speech conversion
+- Podcast voice generation
+- Audio book narration
+- Voice assistance
+
+**Performance** (Jetson Thor estimate):
+- Real-time synthesis
+- Concurrent users: 12-15
 
 ---
 
 ## Resource Allocation
 
-### Memory Budget (INT4 Quantization)
+### Memory Budget (Total: 128GB)
 
-| Service Category | Models | Peak Memory | Typical Memory |
-|-----------------|--------|-------------|----------------|
-| Code (either)   | 1 model| ~18GB       | ~18GB          |
-| Chat (all)      | 3 models| ~24GB      | ~24GB          |
-| Vision          | 1 model| ~4GB        | ~4GB           |
-| Speech          | 2 models| ~2.5GB     | ~2.5GB         |
-| **Total**       |        | **~48GB**   | **~40GB**      |
+| Service | Memory | Port | Status | Purpose |
+|---------|--------|------|--------|---------|
+| **Code Assistant** | ~18.6GB | 8001 | Core | Code generation |
+| **Vision (LLaVA)** | ~4.9GB | 8002 | Core | Image understanding |
+| **Whisper ASR** | ~2GB | 8003 | Core | Speech-to-text |
+| **Piper TTS** | ~0.5GB | 8004 | Core | Text-to-speech |
+| **Total Used** | **~26GB** | - | - | - |
+| **Remaining** | **~102GB** | - | - | Concurrency/batching |
 
-**Remaining**: ~80GB for batch processing and concurrency
-
-### Expected Performance (Jetson Thor)
+### Performance Expectations (Jetson Thor)
 
 | Model | Tokens/sec | Concurrent Users | Response Time |
 |-------|-----------|------------------|---------------|
-| Qwen2.5-Coder-32B | 50-70 | 3-5 | 2-4s |
-| Qwen3-Coder-30B-A3B | 70-90 | 5-8 | 1-3s |
-| Qwen3-32B | 50-70 | 5-8 | 2-3s |
-| Qwen3-8B | 150-200 | 8-12 | 1-2s |
-| Qwen3-4B | 300-400 | 12-15 | <1s |
-| Whisper-Small | 10x RT | 10+ | <0.5s |
+| Qwen3-30B-A3B (Code) | 70-90 | 5-8 | 1-3s |
+| LLaVA-1.5-7B (Vision) | 80-120 | 5-8 | 2-4s (+ image) |
+| Whisper-Small (ASR) | 10x RT | 10+ | <0.5s |
+| Piper (TTS) | RT | 12-15 | <0.2s |
 
 ---
 
 ## Development Workflow
 
-### Adding New Services
+### Getting Started
 
-1. Create service-specific directory under project root
-2. Write Dockerfile using NVIDIA Triton vLLM base image or other suitable images
-3. Add service configuration to `docker-compose.yml` with proxy environment variables
-4. Create K3s deployment manifest in `k3s/` directory
-5. Update intelligent routing gateway if needed
-6. Add health check endpoints
-7. Update monitoring configuration
+1. **Clone and Setup**:
+```bash
+# On local development machine
+git clone <repository>
+cd FamilyAI
+cp .env.example .env
+nano .env  # Edit configuration for your server
+```
+
+2. **Download GGUF Models** (on Jetson Thor server):
+```bash
+# SSH into Jetson Thor
+ssh sindoyang@<jetson-thor-ip>
+cd /path/to/FamilyAI
+
+# Download all GGUF models (automatic, uses HuggingFace)
+./scripts/download-gguf-models.sh
+
+# Or download specific models
+./scripts/download-gguf-models.sh --model code-agentic
+./scripts/download-gguf-models.sh --model vision-llava
+```
+
+**Downloaded files**:
+- `Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf` (~18.6GB)
+- `ggml-model-q4_k.gguf` (LLaVA language model, ~4.1GB)
+- `mmproj-model-f16.gguf` (LLaVA vision projector, ~0.6GB)
+
+3. **Deploy Services** (on Jetson Thor server):
+
+**Option A: Core Services Only (Recommended for initial deployment)**
+```bash
+# Start 4 core services
+docker-compose up -d code-agentic vision whisper piper
+```
+
+**Option B: Full Stack (with gateway and web UI)**
+```bash
+# Start all services including gateway and web UI
+docker-compose --profile full up -d
+```
+
+**Option C: With Monitoring**
+```bash
+# Start with Prometheus + Grafana monitoring
+docker-compose --profile full --profile monitoring up -d
+```
+
+4. **Health Check** (on Jetson Thor server):
+```bash
+# Check all services are running
+docker-compose ps
+
+# Check service health
+curl http://localhost:8001/health  # Code Assistant
+curl http://localhost:8002/health  # Vision
+curl http://localhost:8003/health  # Whisper
+curl http://localhost:8004/health  # Piper
+```
+
+5. **Test Inference** (on Jetson Thor server):
+
+**Code Assistant**:
+```bash
+curl http://localhost:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-30b-a3b",
+    "messages": [{"role": "user", "content": "Write a Python function to calculate factorial"}],
+    "max_tokens": 512
+  }'
+```
+
+**Vision (LLaVA)**:
+```bash
+# Note: Vision API requires image input - use appropriate client
+# Example with llama-mtmd-cli in container:
+docker exec -it familyai-vision llama-mtmd-cli \
+  --model /models/ggml-model-q4_k.gguf \
+  --mmproj /models/mmproj-model-f16.gguf \
+  --image /path/to/image.jpg \
+  --prompt "Describe this image"
+```
+
+### Adding New Features
+
+1. Create feature branch on local machine
+2. Make code changes locally
+3. Commit and push to repository
+4. Pull changes on Jetson Thor server
+5. Test on Jetson Thor server
+6. Verify functionality
+7. Merge to main branch after validation
 
 ### Model Management
 
-**Downloading Models (Containerized)**:
+**Updating Models**:
+1. Update `.env` file with new model name
+2. Run download script: `./scripts/download-gguf-models.sh --model <model-name>`
+3. Restart affected service: `docker-compose restart <service>`
+
+**Model Storage**:
+- GGUF models: `/home/sindoyang/.cache/familyai/gguf`
+- HuggingFace cache: `/home/sindoyang/.cache/huggingface`
+- Whisper models: Downloaded automatically on first run
+- Piper models: Stored in Docker volume `piper-models`
+
+---
+
+## Deployment Commands
+
+### Development Deployment (docker-compose)
+
+**Start Core Services**:
 ```bash
-# Download all models using batch downloader (recommended)
-./scripts/02-pull-models.sh
-
-# Or use batch mode explicitly
-./scripts/02-pull-models.sh --batch
-
-# Download specific model
-./scripts/02-pull-models.sh --model code-traditional
-
-# Download multiple specific models
-./scripts/02-pull-models.sh --model code-traditional --model chat-fast
-
-# Download custom model directly
-MODEL_NAME=Qwen/custom-model docker-compose -f docker-compose.download.yml run --rm model-downloader
+docker-compose up -d code-agentic vision whisper piper
 ```
 
-**Proxy Configuration**:
-- Models are downloaded through containers using the proxy specified in `.env`
-- Default proxy: `http://127.0.0.1:2526`
-- Configure `PROXY_URL` in `.env` file to change proxy settings
-- The `NO_PROXY` variable excludes internal container network from proxy
-
-Models are cached in `~/.cache/huggingface` and mounted into containers.
-
-**Adding New Models**:
-1. Update model name in `.env` file
-2. Download using containerized downloader (see commands above)
-3. Add model service to `docker-compose.yml` with correct image and proxy settings
-4. Update routing logic in `gateway/router.py` if needed
-5. Add deployment manifest to `k3s/` for production
-
-### Deployment Commands
-
-**1. Setup Environment**:
+**Start with Gateway**:
 ```bash
-# Copy and edit environment file
-cp .env.example .env
-# Edit PROXY_URL and other settings
-nano .env
+docker-compose --profile full up -d
 ```
 
-**2. Download Models** (using containers with proxy):
+**View Logs**:
 ```bash
-# Download all models (batch mode, faster)
-./scripts/02-pull-models.sh
-
-# Or download specific models
-./scripts/02-pull-models.sh --model code-traditional --model chat-fast
+docker-compose logs -f code-agentic
+docker-compose logs -f vision
+docker-compose logs -f whisper
+docker-compose logs -f piper
 ```
 
-**3. Deploy Services**:
-
-**Docker Compose** (for development):
+**Stop Services**:
 ```bash
-./scripts/03-deploy-docker-compose.sh
+docker-compose down
 ```
 
-**K3s** (for production):
+**Restart Single Service**:
 ```bash
-./scripts/04-deploy-k3s.sh
+docker-compose restart code-agentic
 ```
 
-**4. Health Check**:
+### Production Deployment (K3s)
+
+**Prerequisites**:
 ```bash
-./scripts/05-health-check.sh
+# Install K3s on Jetson Thor
+curl -sfL https://get.k3s.io | sh -
 ```
 
-**5. Performance Benchmark**:
+**Deploy**:
 ```bash
-./scripts/06-benchmark.sh
+# Apply manifests (create if needed)
+kubectl apply -f k3s/namespace.yaml
+kubectl apply -f k3s/configmap.yaml
+kubectl apply -f k3s/deployments/
+kubectl apply -f k3s/services/
+```
+
+**Monitor**:
+```bash
+kubectl get pods -n familyai
+kubectl logs -f -n familyai deployment/code-agentic
 ```
 
 ---
 
-## Intelligent Routing
+## API Access
 
-The routing gateway (`gateway/router.py`) automatically selects the best model based on:
+### OpenAI-Compatible API
 
-### Code Assistant Routing
+All services expose OpenAI-compatible endpoints:
 
-**Route to Qwen2.5-Coder-32B** if:
-- Task: Code completion, generation, or single-file refactoring
-- Context: < 8K tokens
-- Priority: Accuracy over speed
-
-**Route to Qwen3-Coder-30B-A3B** if:
-- Task: Multi-file analysis, repository understanding
-- Context: > 8K tokens or requires long-context
-- Priority: Agentic capabilities, browser automation
-
-### Chat Routing
-
-**Route to Qwen3-4B** if:
-- Simple Q&A, quick lookups
-- Response time critical
-
-**Route to Qwen3-8B** if:
-- General conversation, explanations
-- Balanced quality and speed
-
-**Route to Qwen3-32B** if:
-- Complex reasoning, creative writing
-- High-quality response required
-
----
-
-## Testing
-
-### Unit Tests
-
-Run service-specific tests:
+**Code Assistant (Port 8001)**:
 ```bash
-pytest tests/test_code_assistant.py
-pytest tests/test_chat.py
-pytest tests/test_vision.py
-pytest tests/test_speech.py
+curl http://<jetson-thor-ip>:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-code",
+    "messages": [{"role": "user", "content": "Your prompt"}]
+  }'
 ```
 
-### Integration Tests
-
-Test full workflow:
+**Via Gateway (Port 8080, if enabled)**:
 ```bash
-./scripts/06-benchmark.sh --integration
+curl http://<jetson-thor-ip>:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "auto",
+    "messages": [{"role": "user", "content": "Your prompt"}]
+  }'
 ```
 
-### Performance Benchmarks
+### VS Code Integration
 
-Standard benchmarks for code models:
-- HumanEval
-- MBPP
-- Aider
+Install **Continue** extension and configure:
 
-Run benchmarks:
-```bash
-./scripts/06-benchmark.sh --code-benchmark
+```json
+{
+  "models": [
+    {
+      "title": "FamilyAI Code",
+      "provider": "openai",
+      "model": "qwen3-code",
+      "apiBase": "http://<jetson-thor-ip>:8001/v1"
+    }
+  ]
+}
 ```
+
+### Web UI Access
+
+If deployed with `--profile full`:
+- Open WebUI: `http://<jetson-thor-ip>:3000`
+- Default login: Create account on first visit
+- Configure models in settings to use gateway endpoint
 
 ---
 
@@ -338,99 +466,47 @@ Run benchmarks:
 
 ### Health Checks
 
-All services expose `/health` endpoint for Kubernetes liveness probes.
+All services expose `/health` endpoint:
+```bash
+curl http://localhost:8001/health  # Code Assistant
+curl http://localhost:8002/health  # Vision
+curl http://localhost:8003/health  # Whisper ASR
+curl http://localhost:8004/health  # Piper TTS
+curl http://localhost:8080/health  # Gateway (if enabled)
+```
 
 ### Metrics
 
-Prometheus metrics available at:
-- vLLM services: `http://<service>:8000/metrics`
-- Gateway: `http://gateway:8080/metrics`
+If Prometheus enabled (`--profile monitoring`):
+- Prometheus: `http://<jetson-thor-ip>:9090`
+- Grafana: `http://<jetson-thor-ip>:3001` (admin/admin)
 
-### Grafana Dashboards
+Metrics endpoints:
+- llama.cpp services: `http://localhost:800X/metrics`
+- Gateway: `http://localhost:8080/metrics`
 
-Import dashboards from `monitoring/grafana-dashboard.json`:
-- GPU utilization and temperature
-- Memory usage per service
-- Request latency and throughput
-- Model switching frequency
+### Logs
 
-### Alerts
-
-Alert rules configured in `monitoring/alerts.yaml`:
-- GPU temperature > 80°C
-- Memory usage > 90%
-- Service down > 5 minutes
-- Request latency > 10 seconds
-
----
-
-## User Access Methods
-
-### Web Interface
-
-Open WebUI accessible at `http://<jetson-thor-ip>:3000`
-
-Features:
-- Unified chat interface for all services
-- File upload for vision tasks
-- Voice input/output
-- Conversation history
-
-### VS Code Integration
-
-Install Continue extension and configure:
-```json
-{
-  "models": [
-    {
-      "title": "FamilyAI Code",
-      "provider": "openai",
-      "model": "qwen2.5-coder-32b",
-      "apiBase": "http://<jetson-thor-ip>:8001/v1"
-    }
-  ]
-}
-```
-
-### API Access
-
-OpenAI-compatible API:
+**View service logs**:
 ```bash
-curl http://<jetson-thor-ip>:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "auto",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
+docker-compose logs -f <service-name>
+docker-compose logs --tail=100 code-agentic
 ```
 
-### Mobile Access
+**Log files**: Stored in JSON format, max 10MB per file, 3 files retained
 
-Use responsive Web UI or any OpenAI-compatible mobile client.
+### Resource Monitoring
 
----
+```bash
+# Check container resource usage
+docker stats
 
-## Security Considerations
+# Check GPU usage
+nvidia-smi
 
-### Network Access
-
-- All services run on internal network only by default
-- Expose through reverse proxy (Traefik/Nginx) for external access
-- Use HTTPS with valid certificates
-- Implement rate limiting per user/IP
-
-### Authentication
-
-- Basic auth for Web UI (configure in Open WebUI)
-- API token-based auth for programmatic access
-- User management in Open WebUI settings
-
-### Data Privacy
-
-- All data processing happens locally on Jetson Thor
-- No external API calls
-- Conversation history stored locally (optional)
-- No telemetry or usage data sent to external servers
+# Check system memory
+free -h
+```
 
 ---
 
@@ -439,54 +515,100 @@ Use responsive Web UI or any OpenAI-compatible mobile client.
 ### Common Issues
 
 **Out of Memory (OOM)**:
-- Check `docker stats` or `kubectl top pods`
-- Reduce concurrent model loading
-- Use model hot-swapping for code assistants
-- Increase quantization (FP8 instead of INT4 if needed)
+- Check: `docker stats` and `nvidia-smi`
+- Solution: Reduce `LLAMACPP_N_PARALLEL` in `.env`
+- Solution: Use smaller context size (`CODE_AGENTIC_MAX_MODEL_LEN`)
 
 **Slow Inference**:
-- Check GPU utilization with `nvidia-smi`
-- Verify INT4 quantization is active
-- Reduce batch size if needed
-- Check for thermal throttling
+- Check: GPU utilization with `nvidia-smi`
+- Verify: `LLAMACPP_GPU_LAYERS=999` (all layers on GPU)
+- Check: Thermal throttling with `nvidia-smi`
 
 **Model Download Fails**:
-- Verify internet connectivity
-- Check HuggingFace Hub status
-- Use manual download and mount cache directory
+- Verify: Internet connectivity and proxy settings
+- Check: `PROXY_URL` in `.env`
+- Try: Manual download and place in `$GGUF_OUTPUT_DIR`
 
-**vLLM Container Crashes**:
-- Check CUDA compatibility
-- Verify NVIDIA Container Toolkit installation
-- Review container logs: `docker logs <container>`
+**Service Won't Start**:
+- Check: GGUF files exist in `$GGUF_OUTPUT_DIR`
+- Verify: File permissions (readable by Docker)
+- Check logs: `docker-compose logs <service>`
 
-See `docs/05-troubleshooting.md` for detailed guides.
+**Vision Service Issues**:
+- Verify: Both `ggml-model-q4_k.gguf` AND `mmproj-model-f16.gguf` exist
+- Check: Using correct image `dustynv/llama.cpp:latest`
+- Verify: Command uses `llama-mtmd-cli` (not standard llama-server)
+
+### Performance Tuning
+
+**Increase Throughput**:
+- Increase `LLAMACPP_N_PARALLEL` (uses more memory)
+- Reduce context size if not needed
+- Use batch processing for multiple requests
+
+**Reduce Latency**:
+- Ensure `LLAMACPP_GPU_LAYERS=999`
+- Reduce `LLAMACPP_N_PARALLEL`
+- Use smaller models if acceptable
+
+**Memory Optimization**:
+- Reduce parallel requests
+- Reduce context sizes
+- Consider Q3_K_M quantization (lower quality, smaller size)
 
 ---
 
-## Upgrade Path
+## Testing
 
-### When to Upgrade Models
+### Unit Tests
 
-**Qwen3-Coder Dense Models** (future):
-- If Qwen releases Qwen3-Coder-32B/14B/8B dense models
-- Expected performance: 10-20% improvement over Qwen2.5-Coder
-- Drop-in replacement with same deployment config
+```bash
+# On Jetson Thor server
+pytest tests/test_services.py
+pytest tests/test_llama_cpp.py
+```
 
-**Qwen3-VL**:
-- When released, replace Qwen2-VL-7B
-- Expected improvements: better vision-language understanding
+### Integration Tests
 
-**Qwen4** (hypothetical):
-- Evaluate parameter efficiency gains
-- Test on benchmarks before production deployment
+```bash
+# Test full workflow
+./scripts/test-integration.sh
+```
 
-### Version Control
+### Performance Benchmarks
 
-- Pin model versions in `vllm/models.yaml`
-- Test new models in staging environment first
-- Keep previous models as fallback for 2 weeks
-- Document performance changes in changelogs
+```bash
+# Benchmark inference speed
+./scripts/benchmark-performance.sh
+
+# Code model benchmark (HumanEval, MBPP)
+./scripts/benchmark-code.sh
+```
+
+---
+
+## Security Considerations
+
+### Network Access
+
+- Services bind to `0.0.0.0` inside containers
+- Exposed ports: 8001-8004 (core), 8080 (gateway), 3000 (webui)
+- For external access: Use reverse proxy (Traefik/Nginx) with HTTPS
+- Implement rate limiting per IP/user
+
+### Authentication
+
+- API authentication disabled by default (home use)
+- Enable in `.env`: `API_AUTH_ENABLED=true`
+- Set secure key: `API_KEY=<random-secure-key>`
+- Web UI: Requires account creation (controlled by `WEBUI_ENABLE_SIGNUP`)
+
+### Data Privacy
+
+- **All processing is local** on Jetson Thor
+- No external API calls
+- No telemetry or usage data sent externally
+- Conversation history stored locally (opt-in in Web UI)
 
 ---
 
@@ -494,21 +616,71 @@ See `docs/05-troubleshooting.md` for detailed guides.
 
 ```
 FamilyAI/
-├── CLAUDE.md                    # This file
-├── README.md                    # User-facing documentation
-├── docker-compose.yml           # Development deployment
-├── .env.example                 # Environment template
-├── k3s/                        # Production deployment
-├── vllm/                       # Model configurations
-├── gateway/                    # Intelligent routing
-├── whisper/                    # ASR service
-├── piper/                      # TTS service
-├── web-ui/                     # Frontend config
-├── scripts/                    # Automation scripts
-├── monitoring/                 # Observability config
-├── tests/                      # Test suites
-└── docs/                       # Documentation
+├── CLAUDE.md                       # This file
+├── README.md                       # User documentation
+├── .env.example                    # Environment template
+├── docker-compose.yml              # Service definitions (4 core + optional)
+├── scripts/
+│   ├── download-gguf-models.sh     # Download pre-quantized GGUF models
+│   ├── test-integration.sh         # Integration tests
+│   └── benchmark-performance.sh    # Performance benchmarks
+├── whisper/                        # Whisper ASR service
+│   ├── Dockerfile
+│   └── config.yaml
+├── piper/                          # Piper TTS service
+│   ├── Dockerfile
+│   └── config.yaml
+├── gateway/                        # Optional routing gateway
+│   ├── Dockerfile
+│   ├── router.py
+│   └── config.yaml
+├── k3s/                            # Production K3s manifests
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── deployments/
+│   └── services/
+├── monitoring/                     # Prometheus + Grafana configs
+│   ├── prometheus.yml
+│   ├── alerts.yaml
+│   └── grafana-dashboard.json
+├── tests/                          # Test suites
+│   ├── test_services.py
+│   └── test_llama_cpp.py
+└── docs/                           # Additional documentation
+    ├── DEPLOYMENT.md
+    ├── API.md
+    └── TROUBLESHOOTING.md
 ```
+
+---
+
+## Migration Notes
+
+### From Previous vLLM-based Architecture
+
+This version has been **simplified from a complex multi-model vLLM architecture** to a **stable 4-service llama.cpp architecture**:
+
+**Changes**:
+- ❌ Removed: vLLM inference engine (compatibility issues on Jetson Thor)
+- ❌ Removed: 5 LLM models (code-traditional, chat-advanced, chat-fast, chat-light)
+- ✅ Added: llama.cpp as unified inference engine (proven stability)
+- ✅ Simplified: 1 code model (Qwen3-30B-A3B MoE - covers all code tasks)
+- ✅ Simplified: 1 vision model (LLaVA 1.5-7B - stable and supported)
+- ✅ Retained: Whisper ASR and Piper TTS (unchanged)
+
+**Benefits**:
+- Reduced complexity: 4 services vs 8 services
+- Reduced memory: ~26GB vs ~48GB
+- Improved stability: llama.cpp proven on Jetson platforms
+- Easier maintenance: Fewer moving parts
+- Better performance: MoE model provides excellent code capability in smaller footprint
+
+**Migration Path**:
+1. Stop old vLLM services: `docker-compose down`
+2. Download GGUF models: `./scripts/download-gguf-models.sh`
+3. Start new services: `docker-compose up -d`
+4. Test functionality with new endpoints
+5. Update client integrations (VS Code, API clients)
 
 ---
 
@@ -516,25 +688,27 @@ FamilyAI/
 
 ### Official Documentation
 
-- **Qwen Models**: https://qwenlm.github.io/
-- **vLLM**: https://docs.vllm.ai/
-- **Jetson AI Lab**: https://www.jetson-ai-lab.com/
-- **K3s**: https://docs.k3s.io/
-
-### Community Resources
-
-- **jetson-containers**: https://github.com/dusty-nv/jetson-containers
-- **Open WebUI**: https://docs.openwebui.com/
+- **llama.cpp**: https://github.com/ggerganov/llama.cpp
+- **Jetson AI Lab - LLaVA**: https://www.jetson-ai-lab.com/tutorial_llava.html
+- **Jetson Containers**: https://github.com/dusty-nv/jetson-containers
 
 ### Model Cards
 
-- Qwen2.5-Coder: https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct
-- Qwen3-Coder: https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct
-- Qwen3: https://huggingface.co/Qwen/Qwen3-32B-Instruct
-- Qwen2-VL: https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct
+- **Qwen3-30B-A3B**: https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507
+- **Qwen3 GGUF**: https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF
+- **LLaVA GGUF**: https://huggingface.co/mys/ggml_llava-v1.5-7b
+- **Whisper**: https://github.com/SYSTRAN/faster-whisper
+- **Piper TTS**: https://github.com/rhasspy/piper
+
+### Community Resources
+
+- **Jetson Forums**: https://forums.developer.nvidia.com/c/agx-autonomous-machines/jetson-embedded-systems
+- **llama.cpp Discussions**: https://github.com/ggerganov/llama.cpp/discussions
 
 ---
 
-**Last Updated**: 2025-10-13
+**Last Updated**: 2025-01-16
 **Jetson Thor Platform**: Production Ready
-**Primary Models**: Qwen3 Series + Qwen2.5-Coder
+**Architecture**: Simplified llama.cpp Edition
+**Primary Models**: Qwen3-30B-A3B (Code) + LLaVA-1.5-7B (Vision)
+**Status**: ✅ Stable, ✅ Tested, ✅ Recommended for Production
