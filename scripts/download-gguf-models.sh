@@ -42,19 +42,22 @@ fi
 
 # Model definitions (pre-quantized GGUF models)
 declare -A GGUF_MODELS=(
-    ["code-agentic"]="unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+    ["code-coder"]="unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"
+    ["ai-assistant"]="unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
     ["vision-llava"]="mys/ggml_llava-v1.5-7b"
 )
 
 # GGUF file names (Q4_K_M quantization)
 declare -A GGUF_FILES=(
-    ["code-agentic"]="Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf"
+    ["code-coder"]="Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
+    ["ai-assistant"]="Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf"
     ["vision-llava"]="ggml-model-q4_k.gguf mmproj-model-f16.gguf"
 )
 
 # Model display names
 declare -A MODEL_NAMES=(
-    ["code-agentic"]="Code Agentic (Qwen3-30B-A3B MoE Q4_K_M)"
+    ["code-coder"]="Code Specialist (Qwen3-Coder-30B-A3B MoE Q4_K_M)"
+    ["ai-assistant"]="AI Assistant (Qwen3-30B-A3B General MoE Q4_K_M)"
     ["vision-llava"]="Vision (LLaVA-1.5-7B Q4_K_M + mmproj)"
 )
 
@@ -125,7 +128,7 @@ MODELS_TO_DOWNLOAD=()
 
 if [ "$#" -eq 0 ]; then
     # Download all models by default
-    MODELS_TO_DOWNLOAD=("code-agentic" "vision-llava")
+    MODELS_TO_DOWNLOAD=("code-coder" "ai-assistant" "vision-llava")
 else
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -172,8 +175,10 @@ echo ""
 
 # Estimate sizes
 echo -e "${YELLOW}Estimated download sizes:${NC}"
-echo "  - code-agentic: ~18.6 GB (Q4_K_M)"
+echo "  - code-coder: ~18.6 GB (Q4_K_M)"
+echo "  - ai-assistant: ~18.6 GB (Q4_K_M)"
 echo "  - vision-llava: ~4.7 GB (Q4_K_M + mmproj)"
+echo "  - Total: ~41.9 GB"
 echo ""
 
 read -p "Continue with download? (y/N) " -n 1 -r

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**FamilyAI** is a family-oriented AI service center deployed on NVIDIA Jetson Thor, providing **4 core AI services**: code assistance, vision understanding, speech recognition, and speech synthesis for family members.
+**FamilyAI** is a family-oriented AI service center deployed on NVIDIA Jetson Thor, providing **5 core AI services**: code assistance (specialist), general AI assistance, vision understanding, speech recognition, and speech synthesis for family members.
 
-**Design Philosophy**: Simplified, stable, and production-ready. Focus on core functionality with proven technologies.
+**Design Philosophy**: Simplified, stable, and production-ready. Focus on core functionality with proven technologies. Dual LLM approach for specialized vs. general tasks.
 
 ---
 
@@ -78,7 +78,7 @@ Model Format: Pre-quantized GGUF from HuggingFace
                     ↓
 ┌─────────────────────────────────────────────┐
 │       Optional: Routing Gateway             │
-│    (Simplified - 4 services only)           │
+│    (Intelligent routing - 5 services)       │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
@@ -86,19 +86,28 @@ Model Format: Pre-quantized GGUF from HuggingFace
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│           4 Core Service Containers         │
+│           5 Core Service Containers         │
 │                                             │
-│  ┌─────────────────┐  ┌─────────────────┐  │
-│  │ Code Assistant  │  │ Vision (LLaVA)  │  │
-│  │ Qwen3-30B-A3B   │  │ LLaVA-1.5-7B    │  │
-│  │ ~18.6GB         │  │ ~4.9GB          │  │
-│  └─────────────────┘  └─────────────────┘  │
+│  ┌──────────────┐  ┌──────────────────┐    │
+│  │ Code Coder   │  │ AI Assistant     │    │
+│  │ Qwen3-Coder  │  │ Qwen3-General    │    │
+│  │ ~18.6GB      │  │ ~18.6GB          │    │
+│  │ Port: 8001   │  │ Port: 8002       │    │
+│  └──────────────┘  └──────────────────┘    │
 │                                             │
-│  ┌─────────────────┐  ┌─────────────────┐  │
-│  │ Whisper ASR     │  │ Piper TTS       │  │
-│  │ faster-whisper  │  │ Piper TTS       │  │
-│  │ ~2GB            │  │ ~0.5GB          │  │
-│  └─────────────────┘  └─────────────────┘  │
+│  ┌──────────────┐  ┌──────────────────┐    │
+│  │ Vision       │  │ Whisper ASR      │    │
+│  │ LLaVA 1.5    │  │ faster-whisper   │    │
+│  │ ~4.9GB       │  │ ~2GB             │    │
+│  │ Port: 8003   │  │ Port: 8004       │    │
+│  └──────────────┘  └──────────────────┘    │
+│                                             │
+│  ┌──────────────┐                          │
+│  │ Piper TTS    │                          │
+│  │ Piper        │                          │
+│  │ ~0.5GB       │                          │
+│  │ Port: 8005   │                          │
+│  └──────────────┘                          │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
@@ -109,8 +118,8 @@ Model Format: Pre-quantized GGUF from HuggingFace
 ┌─────────────────────────────────────────────┐
 │           Jetson Thor Hardware              │
 │       (128GB RAM, 2070 FP4 TFLOPS)          │
-│     Total Memory Usage: ~26GB / 128GB       │
-│     Remaining: ~102GB for concurrency       │
+│     Total Memory Usage: ~44.6GB / 128GB     │
+│     Remaining: ~83.4GB for concurrency      │
 └─────────────────────────────────────────────┘
 ```
 
@@ -118,9 +127,9 @@ Model Format: Pre-quantized GGUF from HuggingFace
 
 ## Core Services
 
-### Service 1: Code Assistant (Qwen3-30B-A3B MoE)
+### Service 1: Code Specialist (Qwen3-Coder-30B-A3B MoE)
 
-**Model**: `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF`
+**Model**: `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF`
 **Quantization**: Q4_K_M
 **Parameters**: 30B total, 3.3B active (MoE architecture)
 **Memory**: ~18.6GB
@@ -128,12 +137,46 @@ Model Format: Pre-quantized GGUF from HuggingFace
 **Context**: 32K tokens
 
 **Use Cases**:
-- Code generation and completion
+- **Code generation and completion** (PRIMARY)
 - Code refactoring and optimization
 - Bug fixing and debugging
-- Multi-file code understanding
-- Repository-scale analysis
-- Long-context code tasks
+- Algorithm implementation
+- Code review and analysis
+- Technical documentation generation
+
+**Performance** (Jetson Thor estimate):
+- Prefill: 40-60 tokens/sec
+- Generation: 70-90 tokens/sec
+- Concurrent users: 5-8
+- **HumanEval/MBPP**: Industry-leading scores
+
+**Why this model**:
+- **Specialized for code**: Trained specifically on code datasets
+- MoE architecture: Only 3.3B params active per request
+- Superior performance on coding benchmarks
+- Pre-quantized GGUF available (no conversion needed)
+- Proven stability with llama.cpp
+
+**When to use**: All code-related tasks, IDE integration, VS Code Continue plugin
+
+---
+
+### Service 2: AI Assistant (Qwen3-30B-A3B MoE)
+
+**Model**: `unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF`
+**Quantization**: Q4_K_M
+**Parameters**: 30B total, 3.3B active (MoE architecture)
+**Memory**: ~18.6GB
+**Port**: 8002
+**Context**: 32K tokens
+
+**Use Cases**:
+- **General conversation and dialogue** (PRIMARY)
+- Creative writing and content generation
+- Multi-domain reasoning
+- Task planning and brainstorming
+- Document analysis and summarization
+- Mixed-task workflows (audio/video processing guidance)
 
 **Performance** (Jetson Thor estimate):
 - Prefill: 40-60 tokens/sec
@@ -141,19 +184,23 @@ Model Format: Pre-quantized GGUF from HuggingFace
 - Concurrent users: 5-8
 
 **Why this model**:
-- MoE architecture: Only 3.3B params active per request (memory efficient)
+- **Broad knowledge base**: General-purpose training
+- MoE architecture: Efficient resource usage
 - Native 256K context, extended to 1M with YaRN
-- Excellent code understanding with agentic capabilities
-- Pre-quantized GGUF available (no conversion needed)
-- Proven stability with llama.cpp
+- Excellent multi-task capabilities
+- Pre-quantized GGUF available
 
-### Service 2: Vision Understanding (LLaVA 1.5-7B)
+**When to use**: Non-code tasks, creative work, general assistance, audio/video workflow planning
+
+---
+
+### Service 3: Vision Understanding (LLaVA 1.5-7B)
 
 **Model**: `mys/ggml_llava-v1.5-7b`
 **Quantization**: Q4_K_M (language model) + FP16 (mmproj)
 **Parameters**: 7B
 **Memory**: ~4.9GB (4.1GB model + 0.6GB mmproj + 0.2GB compute)
-**Port**: 8002
+**Port**: 8003
 **Context**: 16K tokens
 
 **Use Cases**:
@@ -178,13 +225,13 @@ Model Format: Pre-quantized GGUF from HuggingFace
 
 **Note**: For OCR-heavy workloads, Qwen2-VL-7B can be substituted (requires fork setup).
 
-### Service 3: Speech Recognition (Whisper ASR)
+### Service 4: Speech Recognition (Whisper ASR)
 
 **Model**: `Systran/faster-whisper-small`
 **Format**: CTranslate2
 **Parameters**: 244M
 **Memory**: ~2GB
-**Port**: 8003
+**Port**: 8004
 
 **Use Cases**:
 - Audio transcription to text
@@ -196,13 +243,13 @@ Model Format: Pre-quantized GGUF from HuggingFace
 - Real-time factor: <0.3 (faster than real-time)
 - Concurrent users: 10+
 
-### Service 4: Speech Synthesis (Piper TTS)
+### Service 5: Speech Synthesis (Piper TTS)
 
 **Model**: `en_US-lessac-medium`
 **Format**: Piper native
 **Parameters**: <100M
 **Memory**: ~0.5GB
-**Port**: 8004
+**Port**: 8005
 
 **Use Cases**:
 - Text-to-speech conversion
@@ -222,18 +269,22 @@ Model Format: Pre-quantized GGUF from HuggingFace
 
 | Service | Memory | Port | Status | Purpose |
 |---------|--------|------|--------|---------|
-| **Code Assistant** | ~18.6GB | 8001 | Core | Code generation |
-| **Vision (LLaVA)** | ~4.9GB | 8002 | Core | Image understanding |
-| **Whisper ASR** | ~2GB | 8003 | Core | Speech-to-text |
-| **Piper TTS** | ~0.5GB | 8004 | Core | Text-to-speech |
-| **Total Used** | **~26GB** | - | - | - |
-| **Remaining** | **~102GB** | - | - | Concurrency/batching |
+| **Code Coder** | ~18.6GB | 8001 | Core | Code-only tasks |
+| **AI Assistant** | ~18.6GB | 8002 | Core | General assistant |
+| **Vision (LLaVA)** | ~4.9GB | 8003 | Core | Image understanding |
+| **Whisper ASR** | ~2GB | 8004 | Core | Speech-to-text |
+| **Piper TTS** | ~0.5GB | 8005 | Core | Text-to-speech |
+| **Total Used** | **~44.6GB** | - | - | - |
+| **Remaining** | **~83.4GB** | - | - | Concurrency/batching |
+
+**Note**: Two 30B models can run simultaneously on Thor's 128GB RAM without issue.
 
 ### Performance Expectations (Jetson Thor)
 
 | Model | Tokens/sec | Concurrent Users | Response Time |
 |-------|-----------|------------------|---------------|
-| Qwen3-30B-A3B (Code) | 70-90 | 5-8 | 1-3s |
+| Qwen3-Coder (Code) | 70-90 | 5-8 | 1-3s |
+| Qwen3-General (AI) | 70-90 | 5-8 | 1-3s |
 | LLaVA-1.5-7B (Vision) | 80-120 | 5-8 | 2-4s (+ image) |
 | Whisper-Small (ASR) | 10x RT | 10+ | <0.5s |
 | Piper (TTS) | RT | 12-15 | <0.2s |
@@ -263,21 +314,24 @@ cd /path/to/FamilyAI
 ./scripts/download-gguf-models.sh
 
 # Or download specific models
-./scripts/download-gguf-models.sh --model code-agentic
+./scripts/download-gguf-models.sh --model code-coder
+./scripts/download-gguf-models.sh --model ai-assistant
 ./scripts/download-gguf-models.sh --model vision-llava
 ```
 
 **Downloaded files**:
-- `Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf` (~18.6GB)
+- `Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf` (~18.6GB) - Code specialist
+- `Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf` (~18.6GB) - General AI
 - `ggml-model-q4_k.gguf` (LLaVA language model, ~4.1GB)
 - `mmproj-model-f16.gguf` (LLaVA vision projector, ~0.6GB)
+- **Total**: ~41.9GB
 
 3. **Deploy Services** (on Jetson Thor server):
 
 **Option A: Core Services Only (Recommended for initial deployment)**
 ```bash
-# Start 4 core services
-docker-compose up -d code-agentic vision whisper piper
+# Start 5 core services
+docker-compose up -d code-coder ai-assistant vision whisper piper
 ```
 
 **Option B: Full Stack (with gateway and web UI)**
@@ -298,10 +352,11 @@ docker-compose --profile full --profile monitoring up -d
 docker-compose ps
 
 # Check service health
-curl http://localhost:8001/health  # Code Assistant
-curl http://localhost:8002/health  # Vision
-curl http://localhost:8003/health  # Whisper
-curl http://localhost:8004/health  # Piper
+curl http://localhost:8001/health  # Code Coder
+curl http://localhost:8002/health  # AI Assistant
+curl http://localhost:8003/health  # Vision
+curl http://localhost:8004/health  # Whisper
+curl http://localhost:8005/health  # Piper
 ```
 
 5. **Test Inference** (on Jetson Thor server):
