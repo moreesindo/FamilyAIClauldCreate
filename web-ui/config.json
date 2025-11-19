@@ -1,6 +1,6 @@
 {
   "name": "FamilyAI",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "models": [
     {
       "id": "auto",
@@ -9,39 +9,21 @@
       "owned_by": "familyai"
     },
     {
-      "id": "code-traditional",
-      "name": "Code Assistant (Traditional)",
-      "description": "Qwen2.5-Coder-32B - Best for code completion and generation",
+      "id": "code-coder",
+      "name": "Code Specialist",
+      "description": "Qwen3-Coder-30B-A3B - Code generation, debugging, refactoring (HumanEval optimized)",
       "owned_by": "familyai"
     },
     {
-      "id": "code-agentic",
-      "name": "Code Assistant (Agentic)",
-      "description": "Qwen3-Coder-30B-A3B - Best for multi-file analysis and long context",
-      "owned_by": "familyai"
-    },
-    {
-      "id": "chat-advanced",
-      "name": "Chat (Advanced)",
-      "description": "Qwen3-32B - Best for complex reasoning and creative tasks",
-      "owned_by": "familyai"
-    },
-    {
-      "id": "chat-fast",
-      "name": "Chat (Fast)",
-      "description": "Qwen3-8B - Balanced performance and quality",
-      "owned_by": "familyai"
-    },
-    {
-      "id": "chat-light",
-      "name": "Chat (Light)",
-      "description": "Qwen3-4B - Fastest response for simple queries",
+      "id": "ai-assistant",
+      "name": "AI Assistant",
+      "description": "Qwen3-30B-A3B - General conversation, reasoning, creative writing, multi-task",
       "owned_by": "familyai"
     },
     {
       "id": "vision",
       "name": "Vision Understanding",
-      "description": "Qwen2-VL-7B - Image analysis and visual Q&A",
+      "description": "LLaVA-1.5-7B - Image analysis, visual Q&A, object recognition",
       "owned_by": "familyai"
     }
   ],
@@ -61,7 +43,7 @@
     "title": "FamilyAI - Your Family AI Assistant",
     "description": "Private, powerful AI running on your Jetson Thor",
     "logo": null,
-    "footer": "Powered by Qwen, vLLM, and NVIDIA Jetson Thor"
+    "footer": "Powered by Qwen (llama.cpp) and NVIDIA Jetson Thor"
   },
   "settings": {
     "default_model": "auto",

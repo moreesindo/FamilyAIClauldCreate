@@ -512,8 +512,24 @@ Install **Continue** extension and configure:
 
 If deployed with `--profile full`:
 - Open WebUI: `http://<jetson-thor-ip>:3000`
-- Default login: Create account on first visit
-- Configure models in settings to use gateway endpoint
+- **Admin Setup**: See `docs/WEBUI-SETUP.md` for detailed instructions
+- **First-time**: Temporarily enable signup, create admin, then disable signup
+- **Security**: Public signup is disabled by default (WEBUI_ENABLE_SIGNUP=false)
+
+**Quick Setup**:
+```bash
+# 1. Enable signup temporarily
+echo "WEBUI_ENABLE_SIGNUP=true" >> .env
+
+# 2. Start Web UI
+docker-compose --profile full up -d web-ui
+
+# 3. Visit http://<jetson-ip>:3000 and register (first user = admin)
+
+# 4. Disable signup for security
+sed -i 's/WEBUI_ENABLE_SIGNUP=true/WEBUI_ENABLE_SIGNUP=false/' .env
+docker-compose restart web-ui
+```
 
 ---
 
